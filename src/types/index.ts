@@ -15,6 +15,7 @@ export interface Car {
   color: string
   mechanicFeeDueDate?: string
   oilChangeDueKm?: number
+  oilChangeDistanceUnit?: 'km' | 'mile'
 }
 
 export interface Client {
@@ -35,8 +36,18 @@ export interface Rental {
   status: RentalStatus
 }
 
+export interface Payment {
+  id: string
+  rentalId: string
+  clientId: string
+  amount: number
+  date: string
+  note?: string
+}
+
 export interface AppState {
   cars: Car[]
   clients: Client[]
   rentals: Rental[]
+  payments: Payment[]
 }

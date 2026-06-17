@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { AppState, Car, CarStatus, Client, Rental } from '../types'
+import type { AppState, Car, CarStatus, Client, Payment, Rental } from '../types'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { loadState, saveState, generateId } from '../utils/storage'
 import { canRentCar } from '../constants/carStatuses'
@@ -42,6 +42,7 @@ interface AppContextValue {
   cars: Car[]
   clients: Client[]
   rentals: Rental[]
+  payments: Payment[]
   loading: boolean
   error: string | null
   clearError: () => void
@@ -55,6 +56,8 @@ interface AppContextValue {
   extendRental: (rentalId: string, newEndDate: string) => Promise<ExtendRentalResult>
   returnCar: (rentalId: string, returnDate?: string) => Promise<RentalActionResult>
   refreshOverdue: () => Promise<void>
+  addPayment: (payment: Omit<Payment, 'id'>) => Promise<Payment | null>
+  deletePayment: (id: string) => Promise<void>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -63,7 +66,7 @@ const useSupabase = isSupabaseConfigured()
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => {
     if (useSupabase) {
-      return { cars: [], clients: [], rentals: [] }
+      return { cars: [], clients: [], rentals: [], payments: [] }
     }
     const loaded = loadState()
     return { ...loaded, rentals: syncRentalStatuses(loaded.rentals) }
@@ -432,6 +435,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
           handleDbError(err, 'Failed to sync rental statuses')
         }
       },
+
+      addPayment: async (paymentData: Omit<Payment, 'id'>): Promise<Payment | null> => {
+        clearError()
+        if (!useSupabase) {
+          const payment: Payment = { ...paymentData, id: generateId('pay') }
+          setState((s) => ({ ...s, payments: [...s.payments, payment] }))
+          return payment
+        }
+
+        try {
+          const payment = await db.insertPayment(paymentData)
+          setState((s) => ({ ...s, payments: [...s.payments, payment] }))
+          return payment
+        } catch (err) {
+          handleDbError(err, 'Failed to add payment')
+          return null
+        }
+      },
+
+      deletePayment: async (id: string): Promise<void> => {
+        clearError()
+        setState((s) => ({ ...s, payments: s.payments.filter((p) => p.id !== id) }))
+
+        if (!useSupabase) return
+
+        try {
+          await db.deletePayment(id)
+        } catch (err) {
+          handleDbError(err, 'Failed to delete payment')
+        }
+      },
     }),
     [state, clearError, handleDbError],
   )
@@ -441,6 +475,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       cars: state.cars,
       clients: state.clients,
       rentals: state.rentals,
+      payments: state.payments,
       loading,
       error,
       clearError,

@@ -1,4 +1,4 @@
-import type { AppState, Car, Client, Rental } from '../types'
+import type { AppState, Car, Client, Payment, Rental } from '../types'
 import { getSupabase } from '../lib/supabase'
 
 function carFromRow(row: Record<string, unknown>): Car {
@@ -18,6 +18,8 @@ function carFromRow(row: Record<string, unknown>): Car {
         ? String(row.mechanic_fee_due_date).slice(0, 10)
         : undefined,
     oilChangeDueKm: row.oil_change_due_km != null ? Number(row.oil_change_due_km) : undefined,
+    oilChangeDistanceUnit:
+      row.oil_change_distance_unit === 'mile' ? 'mile' : 'km',
   }
 }
 
@@ -34,6 +36,7 @@ function carToRow(car: Omit<Car, 'id'>): Record<string, unknown> {
     color: car.color,
     mechanic_fee_due_date: car.mechanicFeeDueDate || null,
     oil_change_due_km: car.oilChangeDueKm ?? null,
+    oil_change_distance_unit: car.oilChangeDistanceUnit ?? 'km',
   }
 }
 
@@ -82,16 +85,38 @@ function rentalToRow(rental: Omit<Rental, 'id'>): Record<string, unknown> {
   }
 }
 
+function paymentFromRow(row: Record<string, unknown>): Payment {
+  return {
+    id: String(row.id),
+    rentalId: String(row.rental_id),
+    clientId: String(row.client_id),
+    amount: Number(row.amount),
+    date: String(row.date).slice(0, 10),
+    note: row.note != null ? String(row.note) : undefined,
+  }
+}
+
+function paymentToRow(payment: Omit<Payment, 'id'>): Record<string, unknown> {
+  return {
+    rental_id: payment.rentalId,
+    client_id: payment.clientId,
+    amount: payment.amount,
+    date: payment.date,
+    note: payment.note ?? null,
+  }
+}
+
 function throwOnError(error: { message?: string } | null, fallbackMessage: string): void {
   if (error) throw new Error(error.message || fallbackMessage)
 }
 
 export async function fetchAppState(): Promise<AppState> {
   const supabase = getSupabase()
-  const [carsRes, clientsRes, rentalsRes] = await Promise.all([
+  const [carsRes, clientsRes, rentalsRes, paymentsRes] = await Promise.all([
     supabase.from('cars').select('*').order('created_at', { ascending: true }),
     supabase.from('clients').select('*').order('created_at', { ascending: true }),
     supabase.from('rentals').select('*').order('created_at', { ascending: true }),
+    supabase.from('payments').select('*').order('created_at', { ascending: true }),
   ])
 
   throwOnError(carsRes.error, 'Failed to load cars')
@@ -102,6 +127,9 @@ export async function fetchAppState(): Promise<AppState> {
     cars: (carsRes.data ?? []).map((r) => carFromRow(r as Record<string, unknown>)),
     clients: (clientsRes.data ?? []).map((r) => clientFromRow(r as Record<string, unknown>)),
     rentals: (rentalsRes.data ?? []).map((r) => rentalFromRow(r as Record<string, unknown>)),
+    payments: paymentsRes.error
+      ? []
+      : (paymentsRes.data ?? []).map((r) => paymentFromRow(r as Record<string, unknown>)),
   }
 }
 
@@ -126,6 +154,7 @@ export async function updateCar(id: string, updates: Partial<Car>): Promise<Car>
   if (updates.color != null) row.color = updates.color
   if ('mechanicFeeDueDate' in updates) row.mechanic_fee_due_date = updates.mechanicFeeDueDate || null
   if ('oilChangeDueKm' in updates) row.oil_change_due_km = updates.oilChangeDueKm ?? null
+  if ('oilChangeDistanceUnit' in updates) row.oil_change_distance_unit = updates.oilChangeDistanceUnit ?? 'km'
 
   const { data, error } = await supabase.from('cars').update(row).eq('id', id).select().single()
   throwOnError(error, 'Failed to update car')
@@ -217,4 +246,21 @@ export async function persistExtendRental(rental: Rental): Promise<Rental> {
     totalCost: rental.totalCost,
     status: rental.status,
   })
+}
+
+export async function insertPayment(payment: Omit<Payment, 'id'>): Promise<Payment> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('payments')
+    .insert(paymentToRow(payment))
+    .select()
+    .single()
+  throwOnError(error, 'Failed to add payment')
+  return paymentFromRow(data as Record<string, unknown>)
+}
+
+export async function deletePayment(id: string): Promise<void> {
+  const supabase = getSupabase()
+  const { error } = await supabase.from('payments').delete().eq('id', id)
+  throwOnError(error, 'Failed to delete payment')
 }

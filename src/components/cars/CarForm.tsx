@@ -18,6 +18,7 @@ interface CarFormState {
   color: string
   mechanicFeeDueDate: string
   oilChangeDueKm: number | string
+  oilChangeDistanceUnit: 'km' | 'mile'
 }
 
 const emptyForm: CarFormState = {
@@ -32,6 +33,7 @@ const emptyForm: CarFormState = {
   color: 'white',
   mechanicFeeDueDate: '',
   oilChangeDueKm: '',
+  oilChangeDistanceUnit: 'km',
 }
 
 interface Props {
@@ -50,6 +52,7 @@ export default function CarForm({ car, onSubmit, onCancel }: Props) {
       licensePlate: car.licensePlate ?? '',
       mechanicFeeDueDate: car.mechanicFeeDueDate ?? '',
       oilChangeDueKm: car.oilChangeDueKm ?? '',
+      oilChangeDistanceUnit: car.oilChangeDistanceUnit ?? 'km',
     }
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
@@ -90,6 +93,7 @@ export default function CarForm({ car, onSubmit, onCancel }: Props) {
       color: form.color,
       mechanicFeeDueDate: form.mechanicFeeDueDate || undefined,
       oilChangeDueKm: form.oilChangeDueKm !== '' ? Number(form.oilChangeDueKm) : undefined,
+      oilChangeDistanceUnit: form.oilChangeDistanceUnit,
     })
   }
 
@@ -184,7 +188,28 @@ export default function CarForm({ car, onSubmit, onCancel }: Props) {
         {field('dailyRate', t('cars.dailyRate'), 'number', { required: true, min: 1, step: 0.01 })}
         {field('mechanicFeeDueDate', t('cars.mechanicFeeDueDate'), 'date')}
       </div>
-      {field('oilChangeDueKm', t('cars.oilChangeDueKm'), 'number', { min: 1, step: 1 })}
+      <div>
+        <label className="mb-1 block text-sm font-medium text-zinc-700">{t('cars.oilChangeDueKm')}</label>
+        <div className="flex gap-2">
+          <input
+            type="number"
+            value={String(form.oilChangeDueKm)}
+            onChange={(e) => setForm({ ...form, oilChangeDueKm: e.target.value })}
+            min={1}
+            step={1}
+            className={`flex-1 rounded-lg border px-3 py-2 text-sm outline-none transition focus:ring-2 focus:ring-indigo-500/20 ${errors.oilChangeDueKm ? 'border-red-300' : 'border-zinc-200 focus:border-indigo-500'}`}
+          />
+          <select
+            value={form.oilChangeDistanceUnit}
+            onChange={(e) => setForm({ ...form, oilChangeDistanceUnit: e.target.value as 'km' | 'mile' })}
+            className="w-20 rounded-lg border border-zinc-200 px-2 py-2 text-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+          >
+            <option value="km">{t('cars.unitKm')}</option>
+            <option value="mile">{t('cars.unitMile')}</option>
+          </select>
+        </div>
+        {errors.oilChangeDueKm && <p className="mt-1 text-xs text-red-500">{errors.oilChangeDueKm}</p>}
+      </div>
       {car && (
         <div>
           <label className="mb-1 block text-sm font-medium text-zinc-700">{t('common.status')}</label>

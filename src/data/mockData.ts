@@ -121,4 +121,5 @@ export const initialState: AppState = {
       status: 'Completed',
     },
   ],
+  payments: [],
 }

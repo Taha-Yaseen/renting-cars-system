@@ -1,4 +1,4 @@
-import type { Car, Rental, RentalStatus } from '../types'
+import type { Car, Payment, Rental, RentalStatus } from '../types'
 import { daysBetween, isOverdue, todayISO } from './dates'
 
 export function calculateRentalCost(
@@ -92,4 +92,34 @@ export function getRentalDailyRate(rental: Pick<Rental, 'dailyRate'>, car: Car |
 export function isCustomRentalRate(rental: Pick<Rental, 'dailyRate'>, car: Car | undefined): boolean {
   if (rental.dailyRate == null || !car) return false
   return rental.dailyRate !== car.dailyRate
+}
+
+export function getRentalPaidAmount(rentalId: string, payments: Payment[]): number {
+  return payments
+    .filter((p) => p.rentalId === rentalId)
+    .reduce((sum, p) => sum + p.amount, 0)
+}
+
+export function getRentalBalance(
+  rental: Rental,
+  car: Car | undefined,
+  payments: Payment[],
+): number {
+  const total = getEffectiveRentalCost(rental, car)
+  const paid = getRentalPaidAmount(rental.id, payments)
+  return Math.max(0, total - paid)
+}
+
+export function getClientTotalOwed(
+  clientId: string,
+  rentals: Rental[],
+  cars: Car[],
+  payments: Payment[],
+): number {
+  return rentals
+    .filter((r) => r.clientId === clientId)
+    .reduce((sum, r) => {
+      const car = cars.find((c) => c.id === r.carId)
+      return sum + getRentalBalance(r, car, payments)
+    }, 0)
 }

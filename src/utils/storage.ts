@@ -15,7 +15,8 @@ export function loadState(): AppState {
       'clients' in parsed &&
       'rentals' in parsed
     ) {
-      return parsed as AppState
+      const state = parsed as Partial<AppState>
+      return { payments: [], ...state } as AppState
     }
     return initialState
   } catch {

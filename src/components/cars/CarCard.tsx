@@ -54,35 +54,37 @@ export default function CarCard({ car, onEdit, onStatusChange, onViewHistory, re
           <StatusBadge status={car.status} />
         </div>
 
-        <div className="mt-auto flex flex-col gap-2 border-t border-zinc-200/80 pt-4 sm:flex-row">
-          <button
-            type="button"
-            onClick={() => onViewHistory?.(car)}
-            className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-300 bg-white/60 py-2.5 text-xs font-medium text-zinc-600 transition hover:bg-white"
-          >
-            <History className="h-3.5 w-3.5" />
-            {t('carHistory.view')}
-            {rentalCount > 0 && (
-              <span className="rounded-full bg-zinc-200 px-1.5 py-0.5 text-[10px] font-semibold">
-                {rentalCount}
-              </span>
-            )}
-          </button>
-          <button
-            type="button"
-            onClick={() => onEdit(car)}
-            className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-300 bg-white/60 py-2.5 text-xs font-medium text-zinc-600 transition hover:bg-white"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            {t('common.edit')}
-          </button>
-          <button
-            type="button"
-            onClick={() => onStatusChange(car.id, 'Available')}
-            className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-300 bg-white/60 py-2.5 text-xs font-medium text-zinc-600 transition hover:bg-white"
-          >
-            {t('cars.undoSold')}
-          </button>
+        <div className="mt-auto border-t border-zinc-200/80 pt-4">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onViewHistory?.(car)}
+              title={t('carHistory.view')}
+              className="relative flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-zinc-200 bg-white/60 text-zinc-500 transition hover:border-zinc-300 hover:bg-white hover:text-zinc-700"
+            >
+              <History className="h-4 w-4" />
+              {rentalCount > 0 && (
+                <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-500 px-1 text-[9px] font-bold text-white">
+                  {rentalCount}
+                </span>
+              )}
+            </button>
+            <button
+              type="button"
+              onClick={() => onEdit(car)}
+              className="flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 active:bg-indigo-800"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              {t('common.edit')}
+            </button>
+            <button
+              type="button"
+              onClick={() => onStatusChange(car.id, 'Available')}
+              className="flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 active:bg-emerald-200"
+            >
+              {t('cars.undoSold')}
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -143,56 +145,65 @@ export default function CarCard({ car, onEdit, onStatusChange, onViewHistory, re
           {car.oilChangeDueKm != null && (
             <p className="flex items-center gap-1.5 text-zinc-600">
               <Droplets className="h-3.5 w-3.5 shrink-0" />
-              {t('cars.oilChangeDue')}: {t('cars.oilChangeDueKmValue', { km: formatNumber(car.oilChangeDueKm, locale) })}
+              {t('cars.oilChangeDue')}: {t('cars.oilChangeDueKmValue', {
+                value: formatNumber(car.oilChangeDueKm, locale),
+                unit: t(car.oilChangeDistanceUnit === 'mile' ? 'cars.unitMile' : 'cars.unitKm'),
+              })}
             </p>
           )}
         </div>
       )}
 
-      <div className="mt-auto flex flex-col gap-2 border-t border-zinc-100 pt-4 sm:flex-row">
-        <button
-          type="button"
-          onClick={() => onViewHistory?.(car)}
-          className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 py-2.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 active:bg-zinc-100"
-        >
-          <History className="h-3.5 w-3.5" />
-          {t('carHistory.view')}
-          {rentalCount > 0 && (
-            <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] font-semibold text-zinc-600">
-              {formatNumber(rentalCount, locale)}
-            </span>
+      <div className="mt-auto border-t border-zinc-100 pt-4">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => onViewHistory?.(car)}
+            title={t('carHistory.view')}
+            className="relative flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-zinc-200 text-zinc-500 transition hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-700 active:bg-zinc-100"
+          >
+            <History className="h-4 w-4" />
+            {rentalCount > 0 && (
+              <span className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-indigo-500 px-1 text-[9px] font-bold text-white">
+                {formatNumber(rentalCount, locale)}
+              </span>
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={() => onEdit(car)}
+            className="flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700 active:bg-indigo-800"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+            {t('common.edit')}
+          </button>
+          {car.status !== 'Rented' && (
+            <>
+              <button
+                type="button"
+                onClick={() =>
+                  onStatusChange(car.id, car.status === 'Maintenance' ? 'Available' : 'Maintenance')
+                }
+                className={`flex min-h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-xs font-semibold transition ${
+                  car.status === 'Maintenance'
+                    ? 'border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 active:bg-emerald-200'
+                    : 'border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 active:bg-amber-200'
+                }`}
+              >
+                <Wrench className="h-3.5 w-3.5" />
+                {car.status === 'Maintenance' ? t('cars.setAvailable') : t('cars.maintenance')}
+              </button>
+              <button
+                type="button"
+                onClick={() => onStatusChange(car.id, 'Sold')}
+                title={t('cars.markSold')}
+                className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 active:bg-red-200"
+              >
+                <BadgeDollarSign className="h-4 w-4" />
+              </button>
+            </>
           )}
-        </button>
-        <button
-          type="button"
-          onClick={() => onEdit(car)}
-          className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 py-2.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 active:bg-zinc-100"
-        >
-          <Pencil className="h-3.5 w-3.5" />
-          {t('common.edit')}
-        </button>
-        {car.status !== 'Rented' && (
-          <>
-            <button
-              type="button"
-              onClick={() =>
-                onStatusChange(car.id, car.status === 'Maintenance' ? 'Available' : 'Maintenance')
-              }
-              className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 py-2.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 active:bg-zinc-100"
-            >
-              <Wrench className="h-3.5 w-3.5" />
-              {car.status === 'Maintenance' ? t('cars.setAvailable') : t('cars.maintenance')}
-            </button>
-            <button
-              type="button"
-              onClick={() => onStatusChange(car.id, 'Sold')}
-              className="flex min-h-[44px] flex-1 items-center justify-center gap-1.5 rounded-lg border border-zinc-200 py-2.5 text-xs font-medium text-zinc-600 transition hover:bg-zinc-50 active:bg-zinc-100"
-            >
-              <BadgeDollarSign className="h-3.5 w-3.5" />
-              {t('cars.markSold')}
-            </button>
-          </>
-        )}
+        </div>
       </div>
     </div>
   )

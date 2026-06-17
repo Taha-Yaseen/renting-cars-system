@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeftRight, CalendarPlus, Download, FileText, Plus, Search } from 'lucide-react'
-import type { Rental, RentalStatus } from '../../types'
+import { ArrowLeftRight, CalendarPlus, Download, FileText, Plus, Search, Wallet } from 'lucide-react'
+import type { Payment, Rental, RentalStatus } from '../../types'
 import { useApp } from '../../context/AppContext'
 import { useLocale } from '../../context/LocaleContext'
 import {
@@ -9,7 +9,13 @@ import {
   rentalOverlapsDateRange,
   todayISO,
 } from '../../utils/dates'
-import { getEffectiveRentalCost, getRentalDailyRate, isCustomRentalRate } from '../../utils/calculations'
+import {
+  getEffectiveRentalCost,
+  getRentalBalance,
+  getRentalDailyRate,
+  getRentalPaidAmount,
+  isCustomRentalRate,
+} from '../../utils/calculations'
 import { formatNumber } from '../../utils/format'
 import { downloadRentalReceipt } from '../../utils/receiptPdf'
 import Modal from '../ui/Modal'
@@ -18,6 +24,7 @@ import PageHeader from '../ui/PageHeader'
 import StatusBadge from '../ui/StatusBadge'
 import RentalForm from './RentalForm'
 import ExtendRentalForm from './ExtendRentalForm'
+import PaymentForm from './PaymentForm'
 
 const statusRowStyles: Record<RentalStatus, string> = {
   Active: 'border-s-indigo-500',
@@ -33,7 +40,7 @@ interface Props {
 }
 
 export default function RentalContent({ openAddOnMount = false }: Props) {
-  const { rentals, cars, clients, addRental, returnCar, extendRental } = useApp()
+  const { rentals, cars, clients, payments, addRental, returnCar, extendRental, addPayment, deletePayment } = useApp()
   const { locale, t } = useLocale()
   const [filter, setFilter] = useState<RentalFilter>('all')
   const [search, setSearch] = useState('')
@@ -43,6 +50,8 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
   const [dateTo, setDateTo] = useState('')
   const [modalOpen, setModalOpen] = useState(openAddOnMount)
   const [extendRentalId, setExtendRentalId] = useState<string | null>(null)
+  const [paymentRental, setPaymentRental] = useState<Rental | null>(null)
+  const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set())
 
   const getCar = (id: string) => cars.find((c) => c.id === id)
   const getClient = (id: string) => clients.find((c) => c.id === id)
@@ -157,6 +166,20 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
       locale,
       labels: receiptLabels,
     })
+  }
+
+  const togglePaymentHistory = (rentalId: string) => {
+    setExpandedPayments((prev) => {
+      const next = new Set(prev)
+      if (next.has(rentalId)) next.delete(rentalId)
+      else next.add(rentalId)
+      return next
+    })
+  }
+
+  const handleAddPayment = async (payment: Omit<Payment, 'id'>) => {
+    await addPayment(payment)
+    setPaymentRental(null)
   }
 
   const filterLabel = (status: RentalFilter) =>
@@ -353,34 +376,114 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
                 </div>
 
                 <div className="mt-4 flex flex-col gap-2 border-t border-zinc-100 pt-4">
-                  {(rental.status === 'Active' || rental.status === 'Overdue') && (
-                    <div className="flex flex-col gap-2 sm:flex-row">
-                      <button
-                        type="button"
-                        onClick={() => setExtendRentalId(rental.id)}
-                        className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 active:bg-indigo-200"
-                      >
-                        <CalendarPlus className="h-4 w-4" />
-                        {rental.endDate ? t('rentals.extend') : t('rentals.setEndDate')}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleReturnCar(rental)}
-                        className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 active:bg-emerald-800"
-                      >
-                        <ArrowLeftRight className="h-4 w-4" />
-                        {t('rentals.returnCar')}
-                      </button>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => handleDownloadReceipt(rental)}
-                    className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 active:bg-zinc-100"
-                  >
-                    <Download className="h-4 w-4" />
-                    {t('rentals.downloadReceipt')}
-                  </button>
+                  {(() => {
+                    const effectiveCost = getEffectiveRentalCost(rental, car)
+                    const paidAmount = getRentalPaidAmount(rental.id, payments)
+                    const balance = getRentalBalance(rental, car, payments)
+                    const rentalPayments = payments.filter((p) => p.rentalId === rental.id)
+                    const isExpanded = expandedPayments.has(rental.id)
+                    const fullyPaid = balance <= 0
+
+                    return (
+                      <>
+                        <div className="rounded-lg bg-zinc-50 px-3 py-2.5">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex gap-4 text-sm">
+                              <span className="text-zinc-500">
+                                {t('payments.paid')}{' '}
+                                <span className="font-semibold text-emerald-700">
+                                  ${formatNumber(paidAmount, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                </span>
+                              </span>
+                              <span className="text-zinc-300">|</span>
+                              <span className="text-zinc-500">
+                                {t('payments.owed')}{' '}
+                                <span className={`font-semibold ${fullyPaid ? 'text-emerald-700' : 'text-red-600'}`}>
+                                  {fullyPaid
+                                    ? t('payments.fullyPaid')
+                                    : `$${formatNumber(balance, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                                </span>
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              {rentalPayments.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => togglePaymentHistory(rental.id)}
+                                  className="text-xs text-indigo-600 hover:underline"
+                                >
+                                  {isExpanded ? '▲' : '▼'} {rentalPayments.length}
+                                </button>
+                              )}
+                              <button
+                                type="button"
+                                onClick={() => setPaymentRental(rental)}
+                                className="flex items-center gap-1 rounded-md bg-indigo-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-indigo-700"
+                              >
+                                <Wallet className="h-3.5 w-3.5" />
+                                {t('payments.addPayment')}
+                              </button>
+                            </div>
+                          </div>
+
+                          {isExpanded && rentalPayments.length > 0 && (
+                            <div className="mt-2 space-y-1 border-t border-zinc-200 pt-2">
+                              {rentalPayments.map((p) => (
+                                <div key={p.id} className="flex items-center justify-between text-xs text-zinc-600">
+                                  <span className="text-zinc-400">{p.date}</span>
+                                  <span className="flex-1 px-2 truncate text-zinc-500">{p.note}</span>
+                                  <span className="font-semibold text-emerald-700">
+                                    +${formatNumber(p.amount, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => deletePayment(p.id)}
+                                    className="ms-2 text-red-400 hover:text-red-600"
+                                    title={t('payments.delete')}
+                                  >
+                                    ×
+                                  </button>
+                                </div>
+                              ))}
+                              <div className="flex justify-between border-t border-zinc-200 pt-1 text-xs font-medium text-zinc-700">
+                                <span>{t('rentals.totalCost')}</span>
+                                <span>${formatNumber(effectiveCost, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {(rental.status === 'Active' || rental.status === 'Overdue') && (
+                          <div className="flex flex-col gap-2 sm:flex-row">
+                            <button
+                              type="button"
+                              onClick={() => setExtendRentalId(rental.id)}
+                              className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-indigo-200 bg-indigo-50 px-4 py-2.5 text-sm font-medium text-indigo-700 transition hover:bg-indigo-100 active:bg-indigo-200"
+                            >
+                              <CalendarPlus className="h-4 w-4" />
+                              {rental.endDate ? t('rentals.extend') : t('rentals.setEndDate')}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleReturnCar(rental)}
+                              className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-emerald-700 active:bg-emerald-800"
+                            >
+                              <ArrowLeftRight className="h-4 w-4" />
+                              {t('rentals.returnCar')}
+                            </button>
+                          </div>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadReceipt(rental)}
+                          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 active:bg-zinc-100"
+                        >
+                          <Download className="h-4 w-4" />
+                          {t('rentals.downloadReceipt')}
+                        </button>
+                      </>
+                    )
+                  })()}
                 </div>
               </div>
             )
@@ -405,6 +508,23 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
             client={getClient(extendingRental.clientId)}
             onSubmit={handleExtend}
             onCancel={() => setExtendRentalId(null)}
+          />
+        )}
+      </Modal>
+
+      <Modal
+        isOpen={!!paymentRental}
+        onClose={() => setPaymentRental(null)}
+        title={t('payments.addPayment')}
+        size="sm"
+      >
+        {paymentRental && (
+          <PaymentForm
+            rental={paymentRental}
+            paidAmount={getRentalPaidAmount(paymentRental.id, payments)}
+            totalCost={getEffectiveRentalCost(paymentRental, getCar(paymentRental.carId))}
+            onSubmit={handleAddPayment}
+            onCancel={() => setPaymentRental(null)}
           />
         )}
       </Modal>

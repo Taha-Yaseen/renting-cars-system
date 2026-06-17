@@ -4,7 +4,7 @@ import type { Client } from '../../types'
 import { useApp } from '../../context/AppContext'
 import { useLocale } from '../../context/LocaleContext'
 import { formatNumber } from '../../utils/format'
-import { getClientRentalCount } from '../../utils/calculations'
+import { getClientRentalCount, getClientTotalOwed } from '../../utils/calculations'
 import Modal from '../ui/Modal'
 import EmptyState from '../ui/EmptyState'
 import PageHeader from '../ui/PageHeader'
@@ -12,7 +12,7 @@ import StatusBadge from '../ui/StatusBadge'
 import ClientForm from './ClientForm'
 
 export default function ClientContent() {
-  const { clients, rentals, addClient, updateClient } = useApp()
+  const { clients, rentals, cars, payments, addClient, updateClient } = useApp()
   const { t, locale } = useLocale()
   const [search, setSearch] = useState('')
   const [modalOpen, setModalOpen] = useState(false)
@@ -105,9 +105,21 @@ export default function ClientContent() {
                     <StatusBadge status={client.status} />
                   </div>
                   <div className="mt-3 flex items-center justify-between border-t border-zinc-100 pt-3">
-                    <span className="text-xs text-zinc-500">
-                      {formatNumber(rentalCount, locale)} {rentalLabel(rentalCount)}
-                    </span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-xs text-zinc-500">
+                        {formatNumber(rentalCount, locale)} {rentalLabel(rentalCount)}
+                      </span>
+                      {(() => {
+                        const owed = getClientTotalOwed(client.id, rentals, cars, payments)
+                        return owed > 0 ? (
+                          <span className="text-xs font-medium text-red-600">
+                            {t('payments.totalOwed')}: ${formatNumber(owed, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-emerald-600">{t('payments.nothingOwed')}</span>
+                        )
+                      })()}
+                    </div>
                     <button
                       type="button"
                       onClick={() => {
@@ -132,6 +144,7 @@ export default function ClientContent() {
                     <th className="px-6 py-3 text-left font-medium text-zinc-500">{t('clients.clientCol')}</th>
                     <th className="px-6 py-3 text-left font-medium text-zinc-500">{t('clients.phone')}</th>
                     <th className="px-6 py-3 text-left font-medium text-zinc-500">{t('clients.rentals')}</th>
+                    <th className="px-6 py-3 text-left font-medium text-zinc-500">{t('payments.balance')}</th>
                     <th className="px-6 py-3 text-left font-medium text-zinc-500">{t('common.status')}</th>
                     <th className="px-6 py-3 text-left font-medium text-zinc-500"></th>
                   </tr>
@@ -152,6 +165,18 @@ export default function ClientContent() {
                         <span className="rounded-full bg-zinc-100 px-2.5 py-0.5 text-xs font-medium text-zinc-700">
                           {formatNumber(getClientRentalCount(client.id, rentals), locale)}
                         </span>
+                      </td>
+                      <td className="px-6 py-4 text-left">
+                        {(() => {
+                          const owed = getClientTotalOwed(client.id, rentals, cars, payments)
+                          return owed > 0 ? (
+                            <span className="font-medium text-red-600">
+                              ${formatNumber(owed, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            </span>
+                          ) : (
+                            <span className="text-emerald-600">—</span>
+                          )
+                        })()}
                       </td>
                       <td className="px-6 py-4 text-left">
                         <StatusBadge status={client.status} />
