@@ -132,7 +132,7 @@ export default function CarForm({ car, onSubmit, onCancel }: Props) {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {field('year', t('cars.year'), 'number', { required: true, min: 1990, max: 2030 })}
-        {field('licensePlate', t('cars.licensePlate'))}
+        {field('licensePlate', `${t('cars.licensePlate')} (${t('common.optional')})`)}
       </div>
       <div>
         <label className="mb-1 block text-sm font-medium text-zinc-700">

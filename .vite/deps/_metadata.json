@@ -1,0 +1,66 @@
+{
+  "hash": "3cd3eafd",
+  "configHash": "11203d75",
+  "lockfileHash": "0ecd2766",
+  "browserHash": "c35a4643",
+  "optimized": {
+    "@supabase/supabase-js": {
+      "src": "../../node_modules/@supabase/supabase-js/dist/index.mjs",
+      "file": "@supabase_supabase-js.js",
+      "fileHash": "87db02f1",
+      "needsInterop": false
+    },
+    "jspdf": {
+      "src": "../../node_modules/jspdf/dist/jspdf.es.min.js",
+      "file": "jspdf.js",
+      "fileHash": "964b377c",
+      "needsInterop": false
+    },
+    "lucide-react": {
+      "src": "../../node_modules/lucide-react/dist/esm/lucide-react.mjs",
+      "file": "lucide-react.js",
+      "fileHash": "c8d4d824",
+      "needsInterop": false
+    },
+    "react-dom/client": {
+      "src": "../../node_modules/react-dom/client.js",
+      "file": "react-dom_client.js",
+      "fileHash": "922d5fa7",
+      "needsInterop": true
+    },
+    "react": {
+      "src": "../../node_modules/react/index.js",
+      "file": "react.js",
+      "fileHash": "94344945",
+      "needsInterop": true
+    },
+    "react/jsx-dev-runtime": {
+      "src": "../../node_modules/react/jsx-dev-runtime.js",
+      "file": "react_jsx-dev-runtime.js",
+      "fileHash": "dae40c8d",
+      "needsInterop": true
+    }
+  },
+  "chunks": {
+    "chunk-B-1-B7_t": {
+      "file": "chunk-B-1-B7_t.js",
+      "isDynamicEntry": false
+    },
+    "html2canvas-DC04OtIc": {
+      "file": "html2canvas-DC04OtIc.js",
+      "isDynamicEntry": true
+    },
+    "index.es-Db4EUFfB": {
+      "file": "index.es-Db4EUFfB.js",
+      "isDynamicEntry": true
+    },
+    "purify.es-GReb5XCv": {
+      "file": "purify.es-GReb5XCv.js",
+      "isDynamicEntry": true
+    },
+    "typeof-KEtdrNHU": {
+      "file": "typeof-KEtdrNHU.js",
+      "isDynamicEntry": false
+    }
+  }
+}
