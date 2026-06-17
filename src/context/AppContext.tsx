@@ -47,6 +47,7 @@ interface AppContextValue {
   error: string | null
   clearError: () => void
   useSupabase: boolean
+  refetch: () => Promise<void>
   addCar: (carData: Omit<Car, 'id'>) => Promise<Car | null>
   updateCar: (id: string, updates: Partial<Car>) => Promise<void>
   toggleCarStatus: (id: string, newStatus: CarStatus) => Promise<void>
@@ -79,6 +80,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const handleDbError = useCallback((err: unknown, message: string) => {
     setError(err instanceof Error ? err.message : message)
   }, [])
+
+  const refetch = useCallback(async () => {
+    if (!useSupabase) return
+    try {
+      const data = await db.fetchAppState()
+      setState({ ...data, rentals: syncRentalStatuses(data.rentals) })
+    } catch (err) {
+      handleDbError(err, 'Failed to load data from Supabase')
+    }
+  }, [handleDbError])
 
   useEffect(() => {
     if (!useSupabase) return undefined
@@ -480,9 +491,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       error,
       clearError,
       useSupabase,
+      refetch,
       ...actions,
     }),
-    [state, actions, loading, error, clearError],
+    [state, actions, loading, error, clearError, refetch],
   )
 
   useEffect(() => {

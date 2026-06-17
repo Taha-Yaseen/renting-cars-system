@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AppProvider } from './context/AppContext'
+import { useApp } from './context/AppContext'
 import { LocaleProvider } from './context/LocaleContext'
 import Layout from './components/layout/Layout'
 import Dashboard from './components/dashboard/Dashboard'
@@ -8,7 +9,17 @@ import ClientContent from './components/clients/ClientContent'
 import RentalContent from './components/rentals/RentalContent'
 
 function AppShell() {
+  const { refetch } = useApp()
   const [activeView, setActiveView] = useState('dashboard')
+  const mounted = useRef(false)
+
+  useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true
+      return
+    }
+    refetch()
+  }, [activeView, refetch])
   const [openCarModal, setOpenCarModal] = useState(false)
   const [openRentalModal, setOpenRentalModal] = useState(false)
 

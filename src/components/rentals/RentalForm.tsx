@@ -6,6 +6,7 @@ import { useLocale } from '../../context/LocaleContext'
 import { formatNumber } from '../../utils/format'
 import { calculateRentalCost } from '../../utils/calculations'
 import { daysBetween, todayISO } from '../../utils/dates'
+import { UserPlus } from 'lucide-react'
 
 interface RentalFormState {
   carId: string
@@ -26,7 +27,7 @@ interface Props {
 }
 
 export default function RentalForm({ onSubmit, onCancel }: Props) {
-  const { cars, clients } = useApp()
+  const { cars, clients, addClient } = useApp()
   const { t, locale } = useLocale()
   const [form, setForm] = useState<RentalFormState>({
     carId: '',
@@ -37,6 +38,10 @@ export default function RentalForm({ onSubmit, onCancel }: Props) {
   })
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitError, setSubmitError] = useState('')
+  const [addingClient, setAddingClient] = useState(false)
+  const [newClientData, setNewClientData] = useState({ fullName: '', phone: '' })
+  const [newClientErrors, setNewClientErrors] = useState<Record<string, string>>({})
+  const [savingClient, setSavingClient] = useState(false)
 
   const availableCars = cars.filter(canRentCar)
   const activeClients = clients.filter((c) => c.status === 'Active')
@@ -66,6 +71,23 @@ export default function RentalForm({ onSubmit, onCancel }: Props) {
     if (new Date(form.endDate) < new Date(form.startDate)) return 0
     return daysBetween(form.startDate, form.endDate)
   }, [form.startDate, form.endDate])
+
+  const handleAddNewClient = async () => {
+    const e: Record<string, string> = {}
+    if (!newClientData.fullName.trim()) e.fullName = t('clients.errors.nameRequired')
+    if (!newClientData.phone.trim()) e.phone = t('clients.errors.phoneRequired')
+    setNewClientErrors(e)
+    if (Object.keys(e).length > 0) return
+    setSavingClient(true)
+    const newClient = await addClient({ fullName: newClientData.fullName.trim(), phone: newClientData.phone.trim(), status: 'Active' })
+    setSavingClient(false)
+    if (newClient) {
+      setForm((f) => ({ ...f, clientId: newClient.id }))
+      setAddingClient(false)
+      setNewClientData({ fullName: '', phone: '' })
+      setNewClientErrors({})
+    }
+  }
 
   const validate = () => {
     const e: Record<string, string> = {}
@@ -150,8 +172,16 @@ export default function RentalForm({ onSubmit, onCancel }: Props) {
       <div>
         <label className="mb-1 block text-sm font-medium text-zinc-700">{t('rentals.client')}</label>
         <select
-          value={form.clientId}
-          onChange={(e) => setForm({ ...form, clientId: e.target.value })}
+          value={addingClient ? '__new__' : form.clientId}
+          onChange={(e) => {
+            if (e.target.value === '__new__') {
+              setAddingClient(true)
+              setForm({ ...form, clientId: '' })
+            } else {
+              setAddingClient(false)
+              setForm({ ...form, clientId: e.target.value })
+            }
+          }}
           className={`w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.clientId ? 'border-red-300' : 'border-zinc-200'}`}
         >
           <option value="">{t('rentals.selectActiveClient')}</option>
@@ -160,8 +190,55 @@ export default function RentalForm({ onSubmit, onCancel }: Props) {
               {client.fullName}
             </option>
           ))}
+          <option value="__new__">{t('rentals.addNewClient')}</option>
         </select>
-        {errors.clientId && <p className="mt-1 text-xs text-red-500">{errors.clientId}</p>}
+        {errors.clientId && !addingClient && <p className="mt-1 text-xs text-red-500">{errors.clientId}</p>}
+
+        {addingClient && (
+          <div className="mt-2 space-y-3 rounded-lg border border-indigo-200 bg-indigo-50/40 p-3">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-indigo-700">
+              <UserPlus className="h-3.5 w-3.5" />
+              {t('rentals.newClientTitle')}
+            </p>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-700">{t('clients.fullName')} <span className="text-red-500">*</span></label>
+              <input
+                type="text"
+                value={newClientData.fullName}
+                onChange={(e) => setNewClientData({ ...newClientData, fullName: e.target.value })}
+                className={`w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${newClientErrors.fullName ? 'border-red-300' : 'border-zinc-200'}`}
+              />
+              {newClientErrors.fullName && <p className="mt-1 text-xs text-red-500">{newClientErrors.fullName}</p>}
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-zinc-700">{t('clients.phone')} <span className="text-red-500">*</span></label>
+              <input
+                type="tel"
+                value={newClientData.phone}
+                onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })}
+                className={`w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 ${newClientErrors.phone ? 'border-red-300' : 'border-zinc-200'}`}
+              />
+              {newClientErrors.phone && <p className="mt-1 text-xs text-red-500">{newClientErrors.phone}</p>}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleAddNewClient}
+                disabled={savingClient}
+                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-indigo-700 disabled:opacity-50"
+              >
+                {t('rentals.addAndSelect')}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setAddingClient(false); setNewClientData({ fullName: '', phone: '' }); setNewClientErrors({}) }}
+                className="text-sm text-zinc-500 hover:text-zinc-700"
+              >
+                {t('common.cancel')}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
