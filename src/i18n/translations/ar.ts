@@ -206,6 +206,8 @@ const ar: Translations = {
     returnCar: 'إرجاع السيارة',
     downloadReceipt: 'تحميل الإيصال',
     extendTitle: 'تمديد الإيجار',
+    editTitle: 'تعديل الإيجار',
+    carLockedCompleted: 'لا يمكن تغيير السيارة للإيجارات المكتملة.',
     vehicle: 'المركبة',
     client: 'العميل',
     selectCar: 'اختر سيارة',

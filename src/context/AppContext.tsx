@@ -38,6 +38,14 @@ interface NewRentalInput {
   dailyRate: number
 }
 
+interface EditRentalInput {
+  carId: string
+  clientId: string
+  startDate: string
+  endDate: string | null
+  dailyRate: number
+}
+
 interface AppContextValue {
   cars: Car[]
   clients: Client[]
@@ -54,6 +62,7 @@ interface AppContextValue {
   addClient: (clientData: Omit<Client, 'id'>) => Promise<Client | null>
   updateClient: (id: string, updates: Partial<Client>) => Promise<void>
   addRental: (input: NewRentalInput) => Promise<RentalActionResult>
+  editRental: (rentalId: string, input: EditRentalInput) => Promise<RentalActionResult>
   extendRental: (rentalId: string, newEndDate: string) => Promise<ExtendRentalResult>
   returnCar: (rentalId: string, returnDate?: string) => Promise<RentalActionResult>
   refreshOverdue: () => Promise<void>
@@ -314,6 +323,83 @@ export function AppProvider({ children }: { children: ReactNode }) {
         } catch (err) {
           setState(snapshot)
           handleDbError(err, 'Failed to create rental')
+          return { success: false, errorKey: 'rentals.errors.saveFailed' }
+        }
+      },
+
+      editRental: async (rentalId: string, input: EditRentalInput): Promise<RentalActionResult> => {
+        clearError()
+        const rental = state.rentals.find((r) => r.id === rentalId)
+        if (!rental) {
+          return { success: false, errorKey: 'rentals.errors.rentalNotFound' }
+        }
+
+        const newCar = state.cars.find((c) => c.id === input.carId)
+        if (!newCar) {
+          return { success: false, errorKey: 'rentals.errors.selectCar' }
+        }
+
+        const carChanged = input.carId !== rental.carId
+        if (carChanged && rental.status !== 'Completed' && !canRentCar(newCar)) {
+          return { success: false, errorKey: 'rentals.errors.carNotAvailable' }
+        }
+
+        if (input.startDate && input.endDate && new Date(input.endDate) < new Date(input.startDate)) {
+          return { success: false, errorKey: 'rentals.errors.endAfterStart' }
+        }
+        if (!input.dailyRate || input.dailyRate <= 0) {
+          return { success: false, errorKey: 'rentals.errors.ratePositive' }
+        }
+
+        const totalCost = calculateRentalCost(input.dailyRate, input.startDate, input.endDate)
+        const updatedRental: Rental = {
+          ...rental,
+          carId: input.carId,
+          clientId: input.clientId,
+          startDate: input.startDate,
+          endDate: input.endDate,
+          dailyRate: input.dailyRate,
+          totalCost,
+          status: deriveRentalStatus({ status: rental.status, endDate: input.endDate }),
+        }
+
+        const oldCar = state.cars.find((c) => c.id === rental.carId)
+        const updatedOldCar =
+          carChanged && rental.status !== 'Completed' && oldCar
+            ? { ...oldCar, status: 'Available' as const }
+            : null
+        const updatedNewCar =
+          carChanged && rental.status !== 'Completed'
+            ? { ...newCar, status: 'Rented' as const }
+            : null
+
+        const snapshot = state
+        setState((s) => ({
+          ...s,
+          rentals: s.rentals.map((r) => (r.id === rentalId ? updatedRental : r)),
+          cars: s.cars.map((c) => {
+            if (updatedOldCar && c.id === updatedOldCar.id) return updatedOldCar
+            if (updatedNewCar && c.id === updatedNewCar.id) return updatedNewCar
+            return c
+          }),
+        }))
+
+        if (!useSupabase) {
+          return { success: true, rental: updatedRental }
+        }
+
+        try {
+          const saved = await db.updateRental(rentalId, updatedRental)
+          if (updatedOldCar) await db.updateCar(updatedOldCar.id, { status: 'Available' })
+          if (updatedNewCar) await db.updateCar(updatedNewCar.id, { status: 'Rented' })
+          setState((s) => ({
+            ...s,
+            rentals: s.rentals.map((r) => (r.id === rentalId ? saved : r)),
+          }))
+          return { success: true, rental: saved }
+        } catch (err) {
+          setState(snapshot)
+          handleDbError(err, 'Failed to update rental')
           return { success: false, errorKey: 'rentals.errors.saveFailed' }
         }
       },

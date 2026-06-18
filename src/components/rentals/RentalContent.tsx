@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeftRight, CalendarPlus, Download, FileText, Plus, Search, Wallet } from 'lucide-react'
+import { ArrowLeftRight, CalendarPlus, Download, FileText, Pencil, Plus, Search, Wallet } from 'lucide-react'
 import type { Payment, Rental, RentalStatus } from '../../types'
 import { useApp } from '../../context/AppContext'
 import { useLocale } from '../../context/LocaleContext'
@@ -23,6 +23,7 @@ import EmptyState from '../ui/EmptyState'
 import PageHeader from '../ui/PageHeader'
 import StatusBadge from '../ui/StatusBadge'
 import RentalForm from './RentalForm'
+import EditRentalForm from './EditRentalForm'
 import ExtendRentalForm from './ExtendRentalForm'
 import PaymentForm from './PaymentForm'
 
@@ -40,7 +41,7 @@ interface Props {
 }
 
 export default function RentalContent({ openAddOnMount = false }: Props) {
-  const { rentals, cars, clients, payments, addRental, returnCar, extendRental, addPayment, deletePayment } = useApp()
+  const { rentals, cars, clients, payments, addRental, editRental, returnCar, extendRental, addPayment, deletePayment } = useApp()
   const { locale, t } = useLocale()
   const [filter, setFilter] = useState<RentalFilter>('all')
   const [search, setSearch] = useState('')
@@ -50,6 +51,7 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
   const [dateTo, setDateTo] = useState('')
   const [modalOpen, setModalOpen] = useState(openAddOnMount)
   const [extendRentalId, setExtendRentalId] = useState<string | null>(null)
+  const [editingRental, setEditingRental] = useState<Rental | null>(null)
   const [paymentRental, setPaymentRental] = useState<Rental | null>(null)
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set())
 
@@ -113,6 +115,18 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
     if (result.success) {
       setModalOpen(false)
     }
+    return result
+  }
+
+  const handleEdit = async (form: {
+    carId: string
+    clientId: string
+    startDate: string
+    endDate: string | null
+    dailyRate: number
+  }) => {
+    const result = await editRental(editingRental!.id, form)
+    if (result.success) setEditingRental(null)
     return result
   }
 
@@ -473,14 +487,24 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
                             </button>
                           </div>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => handleDownloadReceipt(rental)}
-                          className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 active:bg-zinc-100"
-                        >
-                          <Download className="h-4 w-4" />
-                          {t('rentals.downloadReceipt')}
-                        </button>
+                        <div className="flex flex-col gap-2 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={() => setEditingRental(rental)}
+                            className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 active:bg-zinc-100"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            {t('common.edit')}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleDownloadReceipt(rental)}
+                            className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm font-medium text-zinc-700 transition hover:bg-zinc-50 active:bg-zinc-100"
+                          >
+                            <Download className="h-4 w-4" />
+                            {t('rentals.downloadReceipt')}
+                          </button>
+                        </div>
                       </>
                     )
                   })()}
@@ -490,6 +514,21 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
           })}
         </div>
       )}
+
+      <Modal
+        isOpen={!!editingRental}
+        onClose={() => setEditingRental(null)}
+        title={t('rentals.editTitle')}
+        size="lg"
+      >
+        {editingRental && (
+          <EditRentalForm
+            rental={editingRental}
+            onSubmit={handleEdit}
+            onCancel={() => setEditingRental(null)}
+          />
+        )}
+      </Modal>
 
       <Modal isOpen={modalOpen} onClose={() => setModalOpen(false)} title={t('rentals.newRental')} size="lg">
         <RentalForm onSubmit={handleCreate} onCancel={() => setModalOpen(false)} />

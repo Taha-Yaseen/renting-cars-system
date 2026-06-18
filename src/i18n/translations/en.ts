@@ -204,6 +204,8 @@ const en = {
     returnCar: 'Return Car',
     downloadReceipt: 'Download Receipt',
     extendTitle: 'Extend Rental',
+    editTitle: 'Edit Rental',
+    carLockedCompleted: 'Vehicle cannot be changed for completed rentals.',
     vehicle: 'Vehicle',
     client: 'Client',
     selectCar: 'Select a car',
