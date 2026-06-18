@@ -227,7 +227,7 @@ const ar: Translations = {
     noAvailableCars: 'لا توجد سيارات متاحة.',
     carsDefault: 'الافتراضي للسيارات: ${{rate}}/يوم',
     customForRental: '· سعر مخصص لهذا الإيجار',
-    carRateOption: '{{make}} {{model}} ({{plate}}) — ${{rate}}/يوم سعر السيارة',
+    carRateOption: '{{make}} {{model}} · {{color}} · {{plate}} — ${{rate}}/يوم',
     day: 'يوم',
     days: 'أيام',
     estimated: '{{days}} × ${{rate}}/يوم = ${{total}}',

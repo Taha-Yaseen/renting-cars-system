@@ -226,7 +226,7 @@ const en = {
     noAvailableCars: 'No available cars.',
     carsDefault: 'Cars default: ${{rate}}/day',
     customForRental: '· custom rate for this rental',
-    carRateOption: '{{make}} {{model}} ({{plate}}) — ${{rate}}/day car rate',
+    carRateOption: '{{make}} {{model}} · {{color}} · {{plate}} — ${{rate}}/day',
     day: 'day',
     days: 'days',
     estimated: '{{days}} × ${{rate}}/day = ${{total}}',

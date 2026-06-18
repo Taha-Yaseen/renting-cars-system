@@ -117,7 +117,8 @@ export default function EditRentalForm({ rental, onSubmit, onCancel }: Props) {
               {t('rentals.carRateOption', {
                 make: car.make,
                 model: car.model,
-                plate: car.licensePlate ?? '',
+                color: t(`carColors.${car.color}`),
+                plate: car.licensePlate ?? '—',
                 rate: car.dailyRate,
               })}
             </option>
