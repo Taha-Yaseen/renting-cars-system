@@ -8,6 +8,7 @@ import {
   getEffectiveRentalCost,
   getRentalDailyRate,
   getRentalDaysForHistory,
+  isCarFullyRevenued,
   isCustomRentalRate,
 } from '../../utils/calculations'
 import { formatRentalPeriod } from '../../utils/dates'
@@ -54,7 +55,7 @@ export default function CarHistoryModal({ car, rentals, clients, isOpen, onClose
             </div>
             <div className="min-w-0">
               <p className="font-semibold text-zinc-900">
-                {car.make} {car.model} · {formatNumber(car.year, locale)}
+                {car.make} {car.model} · {car.year}
               </p>
               {car.licensePlate && (
                 <p className="text-sm text-zinc-500">
@@ -68,6 +69,11 @@ export default function CarHistoryModal({ car, rentals, clients, isOpen, onClose
                     style={{ backgroundColor: getCarColorHex(car.color) }}
                   />
                   {t(`carColors.${car.color}`)}
+                </p>
+              )}
+              {car.price > 0 && (
+                <p className="mt-0.5 text-xs text-zinc-500">
+                  {t('cars.price')}: ${formatNumber(car.price, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
               )}
             </div>
@@ -98,6 +104,18 @@ export default function CarHistoryModal({ car, rentals, clients, isOpen, onClose
             <p className="mt-1 text-xl font-bold text-emerald-700">
               ${formatNumber(stats.totalRevenue, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </p>
+          </div>
+          <div className="rounded-lg border border-zinc-200 bg-white p-3 col-span-2 sm:col-span-4">
+            <p className="text-xs font-medium text-zinc-500">{t('carHistory.revenueOfPrice')}</p>
+            <p className="mt-1 text-xl font-bold text-zinc-900">
+              ${formatNumber(stats.totalRevenue, locale, { maximumFractionDigits: 0 })}
+              <span className="text-sm font-medium text-zinc-400"> / ${formatNumber(car.price, locale, { maximumFractionDigits: 0 })}</span>
+            </p>
+            {isCarFullyRevenued(stats.totalRevenue, car) && (
+              <span className="mt-1.5 inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-medium text-emerald-700 ring-1 ring-inset ring-emerald-600/20">
+                {t('carHistory.fullyRevenued')}
+              </span>
+            )}
           </div>
         </div>
 

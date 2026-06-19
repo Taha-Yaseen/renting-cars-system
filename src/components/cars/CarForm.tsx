@@ -12,6 +12,7 @@ interface CarFormState {
   year: number | string
   licensePlate: string
   dailyRate: number | string
+  price: number | string
   status: CarStatus
   purchaseMonth: number | string
   purchaseYear: number | string
@@ -27,6 +28,7 @@ const emptyForm: CarFormState = {
   year: new Date().getFullYear(),
   licensePlate: '',
   dailyRate: '',
+  price: 0,
   status: 'Available',
   purchaseMonth: new Date().getMonth() + 1,
   purchaseYear: new Date().getFullYear(),
@@ -50,6 +52,7 @@ export default function CarForm({ car, onSubmit, onCancel }: Props) {
       ...emptyForm,
       ...car,
       licensePlate: car.licensePlate ?? '',
+      price: car.price ?? 0,
       mechanicFeeDueDate: car.mechanicFeeDueDate ?? '',
       oilChangeDueKm: car.oilChangeDueKm ?? '',
       oilChangeDistanceUnit: car.oilChangeDistanceUnit ?? 'km',
@@ -65,6 +68,7 @@ export default function CarForm({ car, onSubmit, onCancel }: Props) {
     if (!yr || yr < 1990 || yr > 2030) e.year = t('cars.errors.yearRequired')
     const rate = Number(form.dailyRate)
     if (!rate || rate <= 0) e.dailyRate = t('cars.errors.rateRequired')
+    if (Number(form.price) < 0) e.price = t('cars.errors.priceRequired')
     const pm = Number(form.purchaseMonth)
     if (!pm || pm < 1 || pm > 12) e.purchaseMonth = t('cars.errors.purchaseMonthRequired')
     const currentYear = new Date().getFullYear()
@@ -87,6 +91,7 @@ export default function CarForm({ car, onSubmit, onCancel }: Props) {
       year: Number(form.year),
       licensePlate: String(form.licensePlate).trim() || undefined,
       dailyRate: Number(form.dailyRate),
+      price: Number(form.price),
       status: form.status,
       purchaseMonth: Number(form.purchaseMonth),
       purchaseYear: Number(form.purchaseYear),
@@ -186,6 +191,9 @@ export default function CarForm({ car, onSubmit, onCancel }: Props) {
       </div>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {field('dailyRate', t('cars.dailyRate'), 'number', { required: true, min: 1, step: 0.01 })}
+        {field('price', t('cars.price'), 'number', { min: 0, step: 0.01 })}
+      </div>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {field('mechanicFeeDueDate', t('cars.mechanicFeeDueDate'), 'date')}
       </div>
       <div>

@@ -85,6 +85,11 @@ export function getCarHistoryStats(carId: string, rentals: Rental[]) {
   }
 }
 
+export function isCarFullyRevenued(totalRevenue: number, car: Car | undefined): boolean {
+  if (!car?.price) return false
+  return totalRevenue >= car.price
+}
+
 export function getRentalDailyRate(rental: Pick<Rental, 'dailyRate'>, car: Car | undefined): number {
   return rental.dailyRate ?? car?.dailyRate ?? 0
 }

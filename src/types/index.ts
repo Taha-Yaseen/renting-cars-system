@@ -9,6 +9,7 @@ export interface Car {
   year: number
   licensePlate?: string
   dailyRate: number
+  price: number
   status: CarStatus
   purchaseMonth: number
   purchaseYear: number

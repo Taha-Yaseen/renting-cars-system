@@ -9,6 +9,7 @@ function carFromRow(row: Record<string, unknown>): Car {
     year: Number(row.year),
     licensePlate: row.license_plate != null ? String(row.license_plate) : undefined,
     dailyRate: Number(row.daily_rate),
+    price: row.price != null ? Number(row.price) : 0,
     status: row.status as Car['status'],
     purchaseMonth: row.purchase_month != null ? Number(row.purchase_month) : 1,
     purchaseYear: row.purchase_year != null ? Number(row.purchase_year) : new Date().getFullYear(),
@@ -30,6 +31,7 @@ function carToRow(car: Omit<Car, 'id'>): Record<string, unknown> {
     year: car.year,
     license_plate: car.licensePlate?.trim() || null,
     daily_rate: car.dailyRate,
+    price: car.price ?? 0,
     status: car.status,
     purchase_month: car.purchaseMonth,
     purchase_year: car.purchaseYear,
@@ -148,6 +150,7 @@ export async function updateCar(id: string, updates: Partial<Car>): Promise<Car>
   if (updates.year != null) row.year = updates.year
   if ('licensePlate' in updates) row.license_plate = updates.licensePlate?.trim() || null
   if (updates.dailyRate != null) row.daily_rate = updates.dailyRate
+  if (updates.price != null) row.price = updates.price
   if (updates.status != null) row.status = updates.status
   if (updates.purchaseMonth != null) row.purchase_month = updates.purchaseMonth
   if (updates.purchaseYear != null) row.purchase_year = updates.purchaseYear
