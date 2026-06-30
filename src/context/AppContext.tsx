@@ -21,7 +21,7 @@ import {
 } from '../utils/calculations'
 import { isOverdue, todayISO } from '../utils/dates'
 import LoadingScreen from '../components/ui/LoadingScreen'
-
+  
 type RentalActionResult =
   | { success: true; rental: Rental }
   | { success: false; errorKey: string }
