@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeftRight, CalendarPlus, Download, FileText, Pencil, Plus, Search, Wallet } from 'lucide-react'
+import { ArrowLeftRight, CalendarPlus, Download, FileText, Pencil, Plus, Search, Trash2, Wallet } from 'lucide-react'
 import type { Payment, Rental, RentalStatus } from '../../types'
 import { useApp } from '../../context/AppContext'
 import { useLocale } from '../../context/LocaleContext'
@@ -19,6 +19,7 @@ import {
 import { formatNumber } from '../../utils/format'
 import { downloadRentalReceipt } from '../../utils/receiptPdf'
 import Modal from '../ui/Modal'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import EmptyState from '../ui/EmptyState'
 import PageHeader from '../ui/PageHeader'
 import StatusBadge from '../ui/StatusBadge'
@@ -41,7 +42,7 @@ interface Props {
 }
 
 export default function RentalContent({ openAddOnMount = false }: Props) {
-  const { rentals, cars, clients, payments, addRental, editRental, returnCar, extendRental, addPayment, deletePayment } = useApp()
+  const { rentals, cars, clients, payments, addRental, editRental, deleteRental, returnCar, extendRental, addPayment, deletePayment } = useApp()
   const { locale, t } = useLocale()
   const [filter, setFilter] = useState<RentalFilter>('all')
   const [search, setSearch] = useState('')
@@ -53,6 +54,11 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
   const [extendRentalId, setExtendRentalId] = useState<string | null>(null)
   const [editingRental, setEditingRental] = useState<Rental | null>(null)
   const [paymentRental, setPaymentRental] = useState<Rental | null>(null)
+  const [deletingRental, setDeletingRental] = useState<Rental | null>(null)
+  const [pendingEdit, setPendingEdit] = useState<{
+    form: { carId: string; clientId: string; startDate: string; endDate: string | null; dailyRate: number }
+    resolve: (result: { success: boolean; errorKey?: string }) => void
+  } | null>(null)
   const [expandedPayments, setExpandedPayments] = useState<Set<string>>(new Set())
 
   const getCar = (id: string) => cars.find((c) => c.id === id)
@@ -118,16 +124,35 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
     return result
   }
 
-  const handleEdit = async (form: {
+  const handleEdit = (form: {
     carId: string
     clientId: string
     startDate: string
     endDate: string | null
     dailyRate: number
   }) => {
-    const result = await editRental(editingRental!.id, form)
+    return new Promise<{ success: boolean; errorKey?: string }>((resolve) => {
+      setPendingEdit({ form, resolve })
+    })
+  }
+
+  const confirmEdit = async () => {
+    if (!pendingEdit || !editingRental) return
+    const result = await editRental(editingRental.id, pendingEdit.form)
+    pendingEdit.resolve(result)
+    setPendingEdit(null)
     if (result.success) setEditingRental(null)
-    return result
+  }
+
+  const cancelEditConfirm = () => {
+    pendingEdit?.resolve({ success: false })
+    setPendingEdit(null)
+  }
+
+  const confirmDelete = async () => {
+    if (!deletingRental) return
+    await deleteRental(deletingRental.id)
+    setDeletingRental(null)
   }
 
   const extendingRental = extendRentalId ? rentals.find((r) => r.id === extendRentalId) : null
@@ -504,6 +529,14 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
                             <Download className="h-4 w-4" />
                             {t('rentals.downloadReceipt')}
                           </button>
+                          <button
+                            type="button"
+                            onClick={() => setDeletingRental(rental)}
+                            className="flex min-h-[44px] flex-1 items-center justify-center gap-2 rounded-lg border border-red-200 bg-white px-4 py-2.5 text-sm font-medium text-red-600 transition hover:bg-red-50 active:bg-red-100"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                            {t('common.delete')}
+                          </button>
                         </div>
                       </>
                     )
@@ -567,6 +600,25 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
           />
         )}
       </Modal>
+
+      <ConfirmDialog
+        isOpen={!!pendingEdit}
+        title={t('rentals.confirmUpdateTitle')}
+        message={t('rentals.confirmUpdateMessage')}
+        confirmLabel={t('common.saveChanges')}
+        onConfirm={confirmEdit}
+        onCancel={cancelEditConfirm}
+      />
+
+      <ConfirmDialog
+        isOpen={!!deletingRental}
+        title={t('rentals.deleteTitle')}
+        message={t('rentals.deleteMessage')}
+        confirmLabel={t('common.delete')}
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeletingRental(null)}
+      />
     </div>
   )
 }

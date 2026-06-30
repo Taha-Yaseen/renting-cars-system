@@ -224,6 +224,14 @@ export async function updateRental(id: string, updates: Partial<Rental>): Promis
   return rentalFromRow(data as Record<string, unknown>)
 }
 
+export async function deleteRental(id: string): Promise<void> {
+  const supabase = getSupabase()
+  const { error: paymentsError } = await supabase.from('payments').delete().eq('rental_id', id)
+  throwOnError(paymentsError, 'Failed to delete rental payments')
+  const { error } = await supabase.from('rentals').delete().eq('id', id)
+  throwOnError(error, 'Failed to delete rental')
+}
+
 export async function persistNewRental(
   rental: Omit<Rental, 'id'>,
   carUpdate: Car,

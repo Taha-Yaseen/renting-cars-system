@@ -63,6 +63,7 @@ interface AppContextValue {
   updateClient: (id: string, updates: Partial<Client>) => Promise<void>
   addRental: (input: NewRentalInput) => Promise<RentalActionResult>
   editRental: (rentalId: string, input: EditRentalInput) => Promise<RentalActionResult>
+  deleteRental: (rentalId: string) => Promise<void>
   extendRental: (rentalId: string, newEndDate: string) => Promise<ExtendRentalResult>
   returnCar: (rentalId: string, returnDate?: string) => Promise<RentalActionResult>
   refreshOverdue: () => Promise<void>
@@ -401,6 +402,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
           setState(snapshot)
           handleDbError(err, 'Failed to update rental')
           return { success: false, errorKey: 'rentals.errors.saveFailed' }
+        }
+      },
+
+      deleteRental: async (rentalId: string): Promise<void> => {
+        clearError()
+        const rental = state.rentals.find((r) => r.id === rentalId)
+        if (!rental) return
+
+        const car = state.cars.find((c) => c.id === rental.carId)
+        const shouldFreeCar = rental.status !== 'Completed' && car?.status === 'Rented'
+        const updatedCar: Car | null = shouldFreeCar && car ? { ...car, status: 'Available' } : null
+
+        const snapshot = state
+        setState((s) => ({
+          ...s,
+          rentals: s.rentals.filter((r) => r.id !== rentalId),
+          payments: s.payments.filter((p) => p.rentalId !== rentalId),
+          cars: updatedCar ? s.cars.map((c) => (c.id === updatedCar.id ? updatedCar : c)) : s.cars,
+        }))
+
+        if (!useSupabase) return
+
+        try {
+          await db.deleteRental(rentalId)
+          if (updatedCar) await db.updateCar(updatedCar.id, { status: 'Available' })
+        } catch (err) {
+          setState(snapshot)
+          handleDbError(err, 'Failed to delete rental')
         }
       },
 
