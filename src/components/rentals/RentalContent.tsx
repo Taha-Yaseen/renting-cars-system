@@ -177,6 +177,7 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
     phone: t('rentals.receipt.phone'),
     rentalDetails: t('rentals.receipt.rentalDetails'),
     rentalPeriod: t('rentals.receipt.rentalPeriod'),
+    periodSeparator: t('rentals.receipt.periodSeparator'),
     dailyRate: t('rentals.receipt.dailyRate'),
     duration: t('rentals.receipt.duration'),
     formatDays: (count: number) => t('rentals.receipt.days', { count: formatNumber(count, locale) }),
@@ -197,8 +198,8 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
     await returnCar(rental.id, returnDate)
   }
 
-  const handleDownloadReceipt = (rental: Rental) => {
-    downloadRentalReceipt({
+  const handleDownloadReceipt = async (rental: Rental) => {
+    await downloadRentalReceipt({
       rental,
       car: getCar(rental.carId),
       client: getClient(rental.clientId),

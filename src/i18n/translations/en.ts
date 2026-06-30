@@ -262,6 +262,7 @@ const en = {
       phone: 'Phone',
       rentalDetails: 'Rental details',
       rentalPeriod: 'Rental period',
+      periodSeparator: '→',
       dailyRate: 'Daily rate',
       duration: 'Duration',
       days: '{{count}} days',

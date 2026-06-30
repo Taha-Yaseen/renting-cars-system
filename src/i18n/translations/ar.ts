@@ -263,6 +263,7 @@ const ar: Translations = {
       phone: 'الهاتف',
       rentalDetails: 'تفاصيل الإيجار',
       rentalPeriod: 'فترة الإيجار',
+      periodSeparator: '←',
       dailyRate: 'السعر اليومي',
       duration: 'المدة',
       days: '{{count}} يوم',
