@@ -135,6 +135,11 @@ const en = {
     timeline: 'Rental timeline',
     noRentals: 'No rental history',
     noRentalsHint: 'This vehicle has not been rented yet.',
+    oilChanges: 'Oil change history',
+    addOilChange: 'Add Oil Change',
+    noOilChanges: 'No oil changes recorded',
+    noOilChangesHint: 'Log an oil change to start tracking this vehicle’s maintenance.',
+    deleteOilChange: 'Delete record',
   },
   carColors: {
     white: 'White',
@@ -312,6 +317,17 @@ const en = {
       amountRequired: 'Enter a valid amount greater than zero',
       dateRequired: 'Payment date is required',
       exceedsBalance: 'Amount exceeds the remaining balance',
+    },
+  },
+  oilChangeRecords: {
+    date: 'Date',
+    distance: 'Distance',
+    note: 'Note',
+    notePlaceholder: 'Optional note...',
+    recordOilChange: 'Record Oil Change',
+    errors: {
+      dateRequired: 'Date is required',
+      distanceRequired: 'Enter a valid distance greater than zero',
     },
   },
 } as const

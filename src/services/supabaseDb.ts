@@ -1,4 +1,4 @@
-import type { AppState, Car, Client, Payment, Rental } from '../types'
+import type { AppState, Car, Client, OilChangeRecord, Payment, Rental } from '../types'
 import { getSupabase } from '../lib/supabase'
 
 function carFromRow(row: Record<string, unknown>): Car {
@@ -108,17 +108,39 @@ function paymentToRow(payment: Omit<Payment, 'id'>): Record<string, unknown> {
   }
 }
 
+function oilChangeRecordFromRow(row: Record<string, unknown>): OilChangeRecord {
+  return {
+    id: String(row.id),
+    carId: String(row.car_id),
+    date: String(row.date).slice(0, 10),
+    distance: Number(row.distance),
+    distanceUnit: row.distance_unit === 'mile' ? 'mile' : 'km',
+    note: row.note != null ? String(row.note) : undefined,
+  }
+}
+
+function oilChangeRecordToRow(record: Omit<OilChangeRecord, 'id'>): Record<string, unknown> {
+  return {
+    car_id: record.carId,
+    date: record.date,
+    distance: record.distance,
+    distance_unit: record.distanceUnit,
+    note: record.note ?? null,
+  }
+}
+
 function throwOnError(error: { message?: string } | null, fallbackMessage: string): void {
   if (error) throw new Error(error.message || fallbackMessage)
 }
 
 export async function fetchAppState(): Promise<AppState> {
   const supabase = getSupabase()
-  const [carsRes, clientsRes, rentalsRes, paymentsRes] = await Promise.all([
+  const [carsRes, clientsRes, rentalsRes, paymentsRes, oilChangeRecordsRes] = await Promise.all([
     supabase.from('cars').select('*').order('created_at', { ascending: true }),
     supabase.from('clients').select('*').order('created_at', { ascending: true }),
     supabase.from('rentals').select('*').order('created_at', { ascending: true }),
     supabase.from('payments').select('*').order('created_at', { ascending: true }),
+    supabase.from('oil_change_records').select('*').order('date', { ascending: false }),
   ])
 
   throwOnError(carsRes.error, 'Failed to load cars')
@@ -132,6 +154,9 @@ export async function fetchAppState(): Promise<AppState> {
     payments: paymentsRes.error
       ? []
       : (paymentsRes.data ?? []).map((r) => paymentFromRow(r as Record<string, unknown>)),
+    oilChangeRecords: oilChangeRecordsRes.error
+      ? []
+      : (oilChangeRecordsRes.data ?? []).map((r) => oilChangeRecordFromRow(r as Record<string, unknown>)),
   }
 }
 
@@ -274,4 +299,23 @@ export async function deletePayment(id: string): Promise<void> {
   const supabase = getSupabase()
   const { error } = await supabase.from('payments').delete().eq('id', id)
   throwOnError(error, 'Failed to delete payment')
+}
+
+export async function insertOilChangeRecord(
+  record: Omit<OilChangeRecord, 'id'>,
+): Promise<OilChangeRecord> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('oil_change_records')
+    .insert(oilChangeRecordToRow(record))
+    .select()
+    .single()
+  throwOnError(error, 'Failed to add oil change record')
+  return oilChangeRecordFromRow(data as Record<string, unknown>)
+}
+
+export async function deleteOilChangeRecord(id: string): Promise<void> {
+  const supabase = getSupabase()
+  const { error } = await supabase.from('oil_change_records').delete().eq('id', id)
+  throwOnError(error, 'Failed to delete oil change record')
 }

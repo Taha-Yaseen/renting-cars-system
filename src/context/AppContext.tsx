@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { AppState, Car, CarStatus, Client, Payment, Rental } from '../types'
+import type { AppState, Car, CarStatus, Client, OilChangeRecord, Payment, Rental } from '../types'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { loadState, saveState, generateId } from '../utils/storage'
 import { canRentCar } from '../constants/carStatuses'
@@ -51,6 +51,7 @@ interface AppContextValue {
   clients: Client[]
   rentals: Rental[]
   payments: Payment[]
+  oilChangeRecords: OilChangeRecord[]
   loading: boolean
   error: string | null
   clearError: () => void
@@ -69,6 +70,8 @@ interface AppContextValue {
   refreshOverdue: () => Promise<void>
   addPayment: (payment: Omit<Payment, 'id'>) => Promise<Payment | null>
   deletePayment: (id: string) => Promise<void>
+  addOilChangeRecord: (record: Omit<OilChangeRecord, 'id'>) => Promise<OilChangeRecord | null>
+  deleteOilChangeRecord: (id: string) => Promise<void>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -77,7 +80,7 @@ const useSupabase = isSupabaseConfigured()
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<AppState>(() => {
     if (useSupabase) {
-      return { cars: [], clients: [], rentals: [], payments: [] }
+      return { cars: [], clients: [], rentals: [], payments: [], oilChangeRecords: [] }
     }
     const loaded = loadState()
     return { ...loaded, rentals: syncRentalStatuses(loaded.rentals) }
@@ -592,6 +595,42 @@ export function AppProvider({ children }: { children: ReactNode }) {
           handleDbError(err, 'Failed to delete payment')
         }
       },
+
+      addOilChangeRecord: async (
+        recordData: Omit<OilChangeRecord, 'id'>,
+      ): Promise<OilChangeRecord | null> => {
+        clearError()
+        if (!useSupabase) {
+          const record: OilChangeRecord = { ...recordData, id: generateId('oil') }
+          setState((s) => ({ ...s, oilChangeRecords: [...s.oilChangeRecords, record] }))
+          return record
+        }
+
+        try {
+          const record = await db.insertOilChangeRecord(recordData)
+          setState((s) => ({ ...s, oilChangeRecords: [...s.oilChangeRecords, record] }))
+          return record
+        } catch (err) {
+          handleDbError(err, 'Failed to add oil change record')
+          return null
+        }
+      },
+
+      deleteOilChangeRecord: async (id: string): Promise<void> => {
+        clearError()
+        setState((s) => ({
+          ...s,
+          oilChangeRecords: s.oilChangeRecords.filter((r) => r.id !== id),
+        }))
+
+        if (!useSupabase) return
+
+        try {
+          await db.deleteOilChangeRecord(id)
+        } catch (err) {
+          handleDbError(err, 'Failed to delete oil change record')
+        }
+      },
     }),
     [state, clearError, handleDbError],
   )
@@ -602,6 +641,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       clients: state.clients,
       rentals: state.rentals,
       payments: state.payments,
+      oilChangeRecords: state.oilChangeRecords,
       loading,
       error,
       clearError,

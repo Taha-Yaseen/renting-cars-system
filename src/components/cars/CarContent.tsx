@@ -18,7 +18,17 @@ interface Props {
 }
 
 export default function CarContent({ openAddOnMount = false }: Props) {
-  const { cars, clients, rentals, addCar, updateCar, toggleCarStatus } = useApp()
+  const {
+    cars,
+    clients,
+    rentals,
+    oilChangeRecords,
+    addCar,
+    updateCar,
+    toggleCarStatus,
+    addOilChangeRecord,
+    deleteOilChangeRecord,
+  } = useApp()
   const { t, locale } = useLocale()
 
   const [search, setSearch] = useState('')
@@ -133,8 +143,13 @@ export default function CarContent({ openAddOnMount = false }: Props) {
         car={historyCar}
         rentals={rentals}
         clients={clients}
+        oilChangeRecords={oilChangeRecords}
         isOpen={!!historyCar}
         onClose={() => setHistoryCar(null)}
+        onAddOilChange={async (record) => {
+          await addOilChangeRecord(record)
+        }}
+        onDeleteOilChange={deleteOilChangeRecord}
       />
 
       <Modal

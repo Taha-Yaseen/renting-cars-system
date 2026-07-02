@@ -127,4 +127,5 @@ export const initialState: AppState = {
     },
   ],
   payments: [],
+  oilChangeRecords: [],
 }

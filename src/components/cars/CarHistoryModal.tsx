@@ -1,5 +1,6 @@
-import { Calendar, Car, DollarSign, FileText, User } from 'lucide-react'
-import type { Car as CarType, Client, Rental, RentalStatus } from '../../types'
+import { useState } from 'react'
+import { Calendar, Car, Droplets, DollarSign, FileText, Plus, User } from 'lucide-react'
+import type { Car as CarType, Client, OilChangeRecord, Rental, RentalStatus } from '../../types'
 import { useLocale } from '../../context/LocaleContext'
 import { formatNumber } from '../../utils/format'
 import {
@@ -11,11 +12,12 @@ import {
   isCarFullyRevenued,
   isCustomRentalRate,
 } from '../../utils/calculations'
-import { formatRentalPeriod } from '../../utils/dates'
+import { formatDate, formatRentalPeriod } from '../../utils/dates'
 import Modal from '../ui/Modal'
 import EmptyState from '../ui/EmptyState'
 import StatusBadge from '../ui/StatusBadge'
 import { getCarColorHex } from '../../constants/carColors'
+import OilChangeForm from './OilChangeForm'
 
 const statusRowStyles: Record<RentalStatus, string> = {
   Active: 'border-s-indigo-500',
@@ -27,18 +29,39 @@ interface Props {
   car: CarType | null
   rentals: Rental[]
   clients: Client[]
+  oilChangeRecords: OilChangeRecord[]
   isOpen: boolean
   onClose: () => void
+  onAddOilChange: (record: Omit<OilChangeRecord, 'id'>) => Promise<void>
+  onDeleteOilChange: (id: string) => void
 }
 
-export default function CarHistoryModal({ car, rentals, clients, isOpen, onClose }: Props) {
+export default function CarHistoryModal({
+  car,
+  rentals,
+  clients,
+  oilChangeRecords,
+  isOpen,
+  onClose,
+  onAddOilChange,
+  onDeleteOilChange,
+}: Props) {
   const { t, locale } = useLocale()
+  const [addingOilChange, setAddingOilChange] = useState(false)
 
   if (!car) return null
 
   const carRentals = getCarRentals(car.id, rentals)
   const stats = getCarHistoryStats(car.id, rentals)
   const getClient = (id: string) => clients.find((c) => c.id === id)
+  const carOilChanges = oilChangeRecords
+    .filter((r) => r.carId === car.id)
+    .sort((a, b) => b.date.localeCompare(a.date))
+
+  const handleAddOilChange = async (record: Omit<OilChangeRecord, 'id'>) => {
+    await onAddOilChange(record)
+    setAddingOilChange(false)
+  }
 
   return (
     <Modal
@@ -182,7 +205,73 @@ export default function CarHistoryModal({ car, rentals, clients, isOpen, onClose
             </div>
           )}
         </div>
+
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-zinc-900">{t('carHistory.oilChanges')}</h3>
+            <button
+              type="button"
+              onClick={() => setAddingOilChange(true)}
+              className="flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-indigo-700"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              {t('carHistory.addOilChange')}
+            </button>
+          </div>
+          {carOilChanges.length === 0 ? (
+            <EmptyState
+              icon={Droplets}
+              title={t('carHistory.noOilChanges')}
+              description={t('carHistory.noOilChangesHint')}
+            />
+          ) : (
+            <div className="space-y-2">
+              {carOilChanges.map((record) => (
+                <div
+                  key={record.id}
+                  className="flex items-center justify-between gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-2.5 text-sm"
+                >
+                  <div className="flex min-w-0 items-center gap-2 text-zinc-600">
+                    <Droplets className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
+                    <span>{formatDate(record.date, locale)}</span>
+                    <span className="text-zinc-300">·</span>
+                    <span className="font-medium text-zinc-900">
+                      {t('cars.oilChangeDueKmValue', {
+                        value: formatNumber(record.distance, locale),
+                        unit: t(record.distanceUnit === 'mile' ? 'cars.unitMile' : 'cars.unitKm'),
+                      })}
+                    </span>
+                    {record.note && (
+                      <span className="truncate text-xs text-zinc-400">— {record.note}</span>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => onDeleteOilChange(record.id)}
+                    title={t('carHistory.deleteOilChange')}
+                    className="shrink-0 text-red-400 hover:text-red-600"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
+
+      <Modal
+        isOpen={addingOilChange}
+        onClose={() => setAddingOilChange(false)}
+        title={t('carHistory.addOilChange')}
+        size="sm"
+      >
+        <OilChangeForm
+          car={car}
+          onSubmit={handleAddOilChange}
+          onCancel={() => setAddingOilChange(false)}
+        />
+      </Modal>
     </Modal>
   )
 }

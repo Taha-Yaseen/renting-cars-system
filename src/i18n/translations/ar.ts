@@ -137,6 +137,11 @@ const ar: Translations = {
     timeline: 'جدول الإيجارات',
     noRentals: 'لا يوجد سجل إيجار',
     noRentalsHint: 'لم تُؤجَّر هذه المركبة بعد.',
+    oilChanges: 'سجل تغيير الزيت',
+    addOilChange: 'إضافة تغيير زيت',
+    noOilChanges: 'لا يوجد تغييرات زيت مسجلة',
+    noOilChangesHint: 'سجّل تغيير زيت لبدء تتبع صيانة هذه المركبة.',
+    deleteOilChange: 'حذف السجل',
   },
   carColors: {
     white: 'أبيض',
@@ -313,6 +318,17 @@ const ar: Translations = {
       amountRequired: 'أدخل مبلغاً صالحاً أكبر من صفر',
       dateRequired: 'تاريخ الدفعة مطلوب',
       exceedsBalance: 'المبلغ يتجاوز الرصيد المتبقي',
+    },
+  },
+  oilChangeRecords: {
+    date: 'التاريخ',
+    distance: 'المسافة',
+    note: 'ملاحظة',
+    notePlaceholder: 'ملاحظة اختيارية...',
+    recordOilChange: 'تسجيل تغيير الزيت',
+    errors: {
+      dateRequired: 'التاريخ مطلوب',
+      distanceRequired: 'أدخل مسافة صالحة أكبر من صفر',
     },
   },
 }

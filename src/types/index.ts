@@ -46,9 +46,19 @@ export interface Payment {
   note?: string
 }
 
+export interface OilChangeRecord {
+  id: string
+  carId: string
+  date: string
+  distance: number
+  distanceUnit: 'km' | 'mile'
+  note?: string
+}
+
 export interface AppState {
   cars: Car[]
   clients: Client[]
   rentals: Rental[]
   payments: Payment[]
+  oilChangeRecords: OilChangeRecord[]
 }
