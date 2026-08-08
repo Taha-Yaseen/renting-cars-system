@@ -10,6 +10,8 @@ interface Props {
   title: string
   children?: ReactNode
   size?: ModalSize
+  /** When true, backdrop click, Escape, and the close button are disabled. */
+  preventClose?: boolean
 }
 
 const sizeClasses: Record<ModalSize, string> = {
@@ -18,19 +20,28 @@ const sizeClasses: Record<ModalSize, string> = {
   lg: 'sm:max-w-2xl',
 }
 
-export default function Modal({ isOpen, onClose, title, children, size = 'md' }: Props) {
+export default function Modal({
+  isOpen,
+  onClose,
+  title,
+  children,
+  size = 'md',
+  preventClose = false,
+}: Props) {
   const { t } = useLocale()
 
   useEffect(() => {
     if (!isOpen) return
-    const handleEsc = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && !preventClose) onClose()
+    }
     document.addEventListener('keydown', handleEsc)
     document.body.style.overflow = 'hidden'
     return () => {
       document.removeEventListener('keydown', handleEsc)
       document.body.style.overflow = ''
     }
-  }, [isOpen, onClose])
+  }, [isOpen, onClose, preventClose])
 
   if (!isOpen) return null
 
@@ -38,7 +49,7 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center sm:p-4">
       <div
         className="absolute inset-0 bg-zinc-900/50 backdrop-blur-sm"
-        onClick={onClose}
+        onClick={preventClose ? undefined : onClose}
         aria-hidden="true"
       />
       <div
@@ -54,7 +65,8 @@ export default function Modal({ isOpen, onClose, title, children, size = 'md' }:
           <button
             type="button"
             onClick={onClose}
-            className="-me-1 rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 touch-manipulation"
+            disabled={preventClose}
+            className="-me-1 rounded-lg p-2 text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-600 touch-manipulation disabled:pointer-events-none disabled:opacity-40"
             aria-label={t('common.close')}
           >
             <X className="h-5 w-5" />

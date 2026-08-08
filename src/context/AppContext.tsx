@@ -59,6 +59,7 @@ interface AppContextValue {
   refetch: () => Promise<void>
   addCar: (carData: Omit<Car, 'id'>) => Promise<Car | null>
   updateCar: (id: string, updates: Partial<Car>) => Promise<void>
+  deleteCar: (id: string) => Promise<void>
   toggleCarStatus: (id: string, newStatus: CarStatus) => Promise<void>
   addClient: (clientData: Omit<Client, 'id'>) => Promise<Client | null>
   updateClient: (id: string, updates: Partial<Client>) => Promise<void>
@@ -208,6 +209,31 @@ export function AppProvider({ children }: { children: ReactNode }) {
             }))
           }
           handleDbError(err, 'Failed to update car status')
+        }
+      },
+
+      deleteCar: async (id: string): Promise<void> => {
+        clearError()
+        const car = state.cars.find((c) => c.id === id)
+        if (!car) return
+
+        const rentalIds = new Set(state.rentals.filter((r) => r.carId === id).map((r) => r.id))
+        const snapshot = state
+        setState((s) => ({
+          ...s,
+          cars: s.cars.filter((c) => c.id !== id),
+          rentals: s.rentals.filter((r) => r.carId !== id),
+          payments: s.payments.filter((p) => !rentalIds.has(p.rentalId)),
+          oilChangeRecords: s.oilChangeRecords.filter((r) => r.carId !== id),
+        }))
+
+        if (!useSupabase) return
+
+        try {
+          await db.deleteCar(id)
+        } catch (err) {
+          setState(snapshot)
+          handleDbError(err, 'Failed to delete car')
         }
       },
 

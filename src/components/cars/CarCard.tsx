@@ -1,4 +1,4 @@
-import { BadgeDollarSign, Calendar, Car, Droplets, History, Pencil, Wrench } from 'lucide-react'
+import { BadgeDollarSign, Calendar, Car, Droplets, History, Pencil, Trash2, Wrench } from 'lucide-react'
 import type { Car as CarType, CarStatus } from '../../types'
 import { getCarColorHex } from '../../constants/carColors'
 import { useLocale } from '../../context/LocaleContext'
@@ -10,11 +10,12 @@ interface Props {
   car: CarType
   onEdit: (car: CarType) => void
   onStatusChange: (id: string, status: CarStatus) => void
+  onDelete?: (car: CarType) => void
   onViewHistory?: (car: CarType) => void
   rentalCount?: number
 }
 
-export default function CarCard({ car, onEdit, onStatusChange, onViewHistory, rentalCount = 0 }: Props) {
+export default function CarCard({ car, onEdit, onStatusChange, onDelete, onViewHistory, rentalCount = 0 }: Props) {
   const { t, locale } = useLocale()
   const isSold = car.status === 'Sold'
   const mechanicOverdue = car.mechanicFeeDueDate ? isOverdue(car.mechanicFeeDueDate) : false
@@ -84,6 +85,16 @@ export default function CarCard({ car, onEdit, onStatusChange, onViewHistory, re
             >
               {t('cars.undoSold')}
             </button>
+            {onDelete && (
+              <button
+                type="button"
+                onClick={() => onDelete(car)}
+                title={t('cars.delete')}
+                className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 active:bg-red-200"
+              >
+                <Trash2 className="h-4 w-4" />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -202,6 +213,16 @@ export default function CarCard({ car, onEdit, onStatusChange, onViewHistory, re
                 <BadgeDollarSign className="h-4 w-4" />
               </button>
             </>
+          )}
+          {onDelete && car.status !== 'Rented' && (
+            <button
+              type="button"
+              onClick={() => onDelete(car)}
+              title={t('cars.delete')}
+              className="flex min-h-9 min-w-9 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-600 transition hover:bg-red-100 active:bg-red-200"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           )}
         </div>
       </div>

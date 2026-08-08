@@ -189,6 +189,27 @@ export async function updateCar(id: string, updates: Partial<Car>): Promise<Car>
   return carFromRow(data as Record<string, unknown>)
 }
 
+export async function deleteCar(id: string): Promise<void> {
+  const supabase = getSupabase()
+
+  const { data: rentals, error: rentalsFetchError } = await supabase
+    .from('rentals')
+    .select('id')
+    .eq('car_id', id)
+  throwOnError(rentalsFetchError, 'Failed to load car rentals')
+
+  const rentalIds = (rentals ?? []).map((r) => r.id as string)
+  if (rentalIds.length > 0) {
+    const { error: paymentsError } = await supabase.from('payments').delete().in('rental_id', rentalIds)
+    throwOnError(paymentsError, 'Failed to delete car rental payments')
+    const { error: rentalsError } = await supabase.from('rentals').delete().eq('car_id', id)
+    throwOnError(rentalsError, 'Failed to delete car rentals')
+  }
+
+  const { error } = await supabase.from('cars').delete().eq('id', id)
+  throwOnError(error, 'Failed to delete car')
+}
+
 export async function insertClient(client: Omit<Client, 'id'>): Promise<Client> {
   const supabase = getSupabase()
   const { data, error } = await supabase

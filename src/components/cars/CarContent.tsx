@@ -6,6 +6,7 @@ import { useLocale } from '../../context/LocaleContext'
 import { formatNumber } from '../../utils/format'
 import { getCarRentals } from '../../utils/calculations'
 import Modal from '../ui/Modal'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import EmptyState from '../ui/EmptyState'
 import PageHeader from '../ui/PageHeader'
 import CarForm from './CarForm'
@@ -25,6 +26,7 @@ export default function CarContent({ openAddOnMount = false }: Props) {
     oilChangeRecords,
     addCar,
     updateCar,
+    deleteCar,
     toggleCarStatus,
     addOilChangeRecord,
     deleteOilChangeRecord,
@@ -36,6 +38,7 @@ export default function CarContent({ openAddOnMount = false }: Props) {
   const [modalOpen, setModalOpen] = useState(openAddOnMount)
   const [editingCar, setEditingCar] = useState<CarType | null>(null)
   const [historyCar, setHistoryCar] = useState<CarType | null>(null)
+  const [deletingCar, setDeletingCar] = useState<CarType | null>(null)
 
   const filtered = cars.filter((car) => {
     const q = search.toLowerCase()
@@ -65,6 +68,12 @@ export default function CarContent({ openAddOnMount = false }: Props) {
     }
     setModalOpen(false)
     setEditingCar(null)
+  }
+
+  const confirmDelete = async () => {
+    if (!deletingCar) return
+    await deleteCar(deletingCar.id)
+    setDeletingCar(null)
   }
 
   return (
@@ -132,12 +141,23 @@ export default function CarContent({ openAddOnMount = false }: Props) {
               car={car}
               onEdit={openEdit}
               onStatusChange={(id, status) => toggleCarStatus(id, status as CarStatus)}
+              onDelete={setDeletingCar}
               onViewHistory={setHistoryCar}
               rentalCount={getCarRentals(car.id, rentals).length}
             />
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={!!deletingCar}
+        title={t('cars.deleteTitle')}
+        message={t('cars.deleteMessage')}
+        confirmLabel={t('common.delete')}
+        variant="danger"
+        onConfirm={confirmDelete}
+        onCancel={() => setDeletingCar(null)}
+      />
 
       <CarHistoryModal
         car={historyCar}

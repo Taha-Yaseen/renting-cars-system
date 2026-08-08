@@ -108,6 +108,10 @@ const en = {
     maintenance: 'Maintenance',
     markSold: 'Mark as Sold',
     undoSold: 'Set Available',
+    delete: 'Delete car',
+    deleteTitle: 'Delete Car',
+    deleteMessage:
+      'Are you sure you want to delete this car? This action cannot be undone and will also remove its rental history, payments, and oil change records.',
     errors: {
       makeRequired: 'Make is required',
       modelRequired: 'Model is required',
