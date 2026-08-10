@@ -277,6 +277,7 @@ const ar: Translations = {
       duration: 'المدة',
       days: '{{count}} يوم',
       totalPaid: 'المبلغ الإجمالي',
+      payments: 'الدفعات',
       status: 'الحالة',
       completed: 'مكتمل',
       unknownCar: 'مركبة غير معروفة',

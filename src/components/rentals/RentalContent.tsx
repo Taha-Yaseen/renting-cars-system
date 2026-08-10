@@ -182,6 +182,10 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
     duration: t('rentals.receipt.duration'),
     formatDays: (count: number) => t('rentals.receipt.days', { count: formatNumber(count, locale) }),
     totalPaid: t('rentals.receipt.totalPaid'),
+    payments: t('rentals.receipt.payments'),
+    paid: t('payments.paid'),
+    owed: t('payments.owed'),
+    fullyPaid: t('payments.fullyPaid'),
     status: t('rentals.receipt.status'),
     statusActive: t('status.Active'),
     statusOverdue: t('status.Overdue'),
@@ -203,6 +207,7 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
       rental,
       car: getCar(rental.carId),
       client: getClient(rental.clientId),
+      payments: payments.filter((p) => p.rentalId === rental.id),
       locale,
       labels: receiptLabels,
     })

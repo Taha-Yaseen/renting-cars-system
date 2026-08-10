@@ -276,6 +276,7 @@ const en = {
       duration: 'Duration',
       days: '{{count}} days',
       totalPaid: 'Total amount',
+      payments: 'Payments',
       status: 'Status',
       completed: 'Completed',
       unknownCar: 'Unknown vehicle',

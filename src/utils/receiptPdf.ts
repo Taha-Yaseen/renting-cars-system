@@ -1,9 +1,15 @@
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
-import type { Car, Client, Rental } from '../types'
+import type { Car, Client, Payment, Rental } from '../types'
 import { BUSINESS_OWNER } from '../config/business'
 import { daysBetween, formatDate, todayISO } from './dates'
-import { deriveRentalStatus, getEffectiveRentalCost, getRentalDailyRate } from './calculations'
+import {
+  deriveRentalStatus,
+  getEffectiveRentalCost,
+  getRentalBalance,
+  getRentalDailyRate,
+  getRentalPaidAmount,
+} from './calculations'
 import { formatNumber } from './format'
 
 // A4 width at 96dpi, used as the off-screen render width so 1px ≈ 1/96in.
@@ -29,6 +35,10 @@ export interface ReceiptLabels {
   duration: string
   formatDays: (count: number) => string
   totalPaid: string
+  payments: string
+  paid: string
+  owed: string
+  fullyPaid: string
   status: string
   statusActive: string
   statusOverdue: string
@@ -44,11 +54,12 @@ interface ReceiptParams {
   rental: Rental
   car: Car | undefined
   client: Client | undefined
+  payments: Payment[]
   locale: string
   labels: ReceiptLabels
 }
 
-function buildReceiptElement({ rental, car, client, locale, labels }: ReceiptParams): HTMLDivElement {
+function buildReceiptElement({ rental, car, client, payments, locale, labels }: ReceiptParams): HTMLDivElement {
   const dir = locale === 'ar' ? 'rtl' : 'ltr'
   const fontFamily =
     locale === 'ar'
@@ -177,6 +188,32 @@ function buildReceiptElement({ rental, car, client, locale, labels }: ReceiptPar
   addRow(labels.duration, labels.formatDays(duration))
   addRow(labels.status, statusLabels[rentalStatus] ?? rentalStatus)
 
+  const rentalPayments = payments
+    .filter((p) => p.rentalId === rental.id)
+    .slice()
+    .sort((a, b) => a.date.localeCompare(b.date))
+
+  if (rentalPayments.length > 0) {
+    addSectionTitle(labels.payments)
+    for (const payment of rentalPayments) {
+      const amount = `$${formatNumber(payment.amount, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+      const value = payment.note?.trim() ? `${amount} — ${payment.note.trim()}` : amount
+      addRow(formatDate(payment.date, locale), value)
+    }
+    const paidAmount = getRentalPaidAmount(rental.id, payments)
+    const balance = getRentalBalance(rental, car, payments)
+    addRow(
+      labels.paid,
+      `$${formatNumber(paidAmount, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    )
+    addRow(
+      labels.owed,
+      balance <= 0
+        ? labels.fullyPaid
+        : `$${formatNumber(balance, locale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
+    )
+  }
+
   const totalBox = document.createElement('div')
   Object.assign(totalBox.style, {
     background: 'rgb(238, 242, 255)',
@@ -199,8 +236,8 @@ function buildReceiptElement({ rental, car, client, locale, labels }: ReceiptPar
   return root
 }
 
-export async function downloadRentalReceipt({ rental, car, client, locale, labels }: ReceiptParams): Promise<void> {
-  const element = buildReceiptElement({ rental, car, client, locale, labels })
+export async function downloadRentalReceipt({ rental, car, client, payments, locale, labels }: ReceiptParams): Promise<void> {
+  const element = buildReceiptElement({ rental, car, client, payments, locale, labels })
   Object.assign(element.style, { position: 'fixed', top: '0', left: '-10000px' })
   document.body.appendChild(element)
 
