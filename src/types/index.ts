@@ -1,6 +1,14 @@
 export type CarStatus = 'Available' | 'Rented' | 'Maintenance' | 'Sold'
 export type ClientStatus = 'Active' | 'Suspended'
 export type RentalStatus = 'Active' | 'Completed' | 'Overdue'
+export type CompanyMemberRole = 'owner'
+
+export interface Company {
+  id: string
+  name: string
+  ownerEmail?: string
+  createdAt: string
+}
 
 export interface Car {
   id: string

@@ -42,7 +42,7 @@ interface Props {
 }
 
 export default function RentalContent({ openAddOnMount = false }: Props) {
-  const { rentals, cars, clients, payments, addRental, editRental, deleteRental, returnCar, extendRental, addPayment, deletePayment } = useApp()
+  const { rentals, cars, clients, payments, companyName, addRental, editRental, deleteRental, returnCar, extendRental, addPayment, deletePayment } = useApp()
   const { locale, t } = useLocale()
   const [filter, setFilter] = useState<RentalFilter>('all')
   const [search, setSearch] = useState('')
@@ -210,6 +210,7 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
       payments: payments.filter((p) => p.rentalId === rental.id),
       locale,
       labels: receiptLabels,
+      companyName: companyName || t('app.name'),
     })
   }
 

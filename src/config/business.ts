@@ -1,1 +1,2 @@
-export const BUSINESS_OWNER = 'Abo Al Waleed'
+/** Fallback display name when company name is unavailable. */
+export const DEFAULT_COMPANY_NAME = 'DriveRent'

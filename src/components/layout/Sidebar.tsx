@@ -1,6 +1,7 @@
-import { Fuel } from 'lucide-react'
+import { Fuel, LogOut } from 'lucide-react'
 import { navItems } from '../../config/navigation'
 import { useApp } from '../../context/AppContext'
+import { useAuth } from '../../context/AuthContext'
 import { useLocale } from '../../context/LocaleContext'
 import LanguageSwitcher from '../ui/LanguageSwitcher'
 
@@ -11,7 +12,8 @@ interface Props {
 
 export default function Sidebar({ activeView, onNavigate }: Props) {
   const { t } = useLocale()
-  const { useSupabase } = useApp()
+  const { companyName } = useApp()
+  const { signOut, user } = useAuth()
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-e border-zinc-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:self-start">
@@ -21,7 +23,7 @@ export default function Sidebar({ activeView, onNavigate }: Props) {
         </div>
         <div>
           <h1 className="text-lg font-bold text-zinc-900">{t('app.name')}</h1>
-          <p className="text-xs text-zinc-500">{t('app.tagline')}</p>
+          <p className="text-xs text-zinc-500">{companyName || t('app.tagline')}</p>
         </div>
       </div>
 
@@ -49,10 +51,20 @@ export default function Sidebar({ activeView, onNavigate }: Props) {
         </div>
       </nav>
 
-      <div className="border-t border-zinc-100 px-6 py-4">
-        <p className="text-xs text-zinc-400">
-          {t(useSupabase ? 'app.demoNote' : 'app.demoNoteLocal')}
-        </p>
+      <div className="space-y-3 border-t border-zinc-100 px-6 py-4">
+        {user?.email && (
+          <p className="truncate text-xs text-zinc-500" title={user.email}>
+            {user.email}
+          </p>
+        )}
+        <button
+          type="button"
+          onClick={() => void signOut()}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+        >
+          <LogOut className="h-4 w-4" />
+          {t('auth.signOut')}
+        </button>
       </div>
     </aside>
   )

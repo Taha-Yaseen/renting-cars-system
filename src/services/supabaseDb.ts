@@ -1,4 +1,4 @@
-import type { AppState, Car, Client, OilChangeRecord, Payment, Rental } from '../types'
+import type { AppState, Car, Client, Company, OilChangeRecord, Payment, Rental } from '../types'
 import { getSupabase } from '../lib/supabase'
 
 function carFromRow(row: Record<string, unknown>): Car {
@@ -24,7 +24,7 @@ function carFromRow(row: Record<string, unknown>): Car {
   }
 }
 
-function carToRow(car: Omit<Car, 'id'>): Record<string, unknown> {
+function carToRow(car: Omit<Car, 'id'>, companyId: string): Record<string, unknown> {
   return {
     make: car.make,
     model: car.model,
@@ -39,6 +39,7 @@ function carToRow(car: Omit<Car, 'id'>): Record<string, unknown> {
     mechanic_fee_due_date: car.mechanicFeeDueDate || null,
     oil_change_due_km: car.oilChangeDueKm ?? null,
     oil_change_distance_unit: car.oilChangeDistanceUnit ?? 'km',
+    company_id: companyId,
   }
 }
 
@@ -51,11 +52,12 @@ function clientFromRow(row: Record<string, unknown>): Client {
   }
 }
 
-function clientToRow(client: Omit<Client, 'id'>): Record<string, unknown> {
+function clientToRow(client: Omit<Client, 'id'>, companyId: string): Record<string, unknown> {
   return {
     full_name: client.fullName,
     phone: client.phone,
     status: client.status,
+    company_id: companyId,
   }
 }
 
@@ -75,7 +77,7 @@ function rentalFromRow(row: Record<string, unknown>): Rental {
   }
 }
 
-function rentalToRow(rental: Omit<Rental, 'id'>): Record<string, unknown> {
+function rentalToRow(rental: Omit<Rental, 'id'>, companyId: string): Record<string, unknown> {
   return {
     car_id: rental.carId,
     client_id: rental.clientId,
@@ -84,6 +86,7 @@ function rentalToRow(rental: Omit<Rental, 'id'>): Record<string, unknown> {
     total_cost: rental.totalCost,
     daily_rate: rental.dailyRate,
     status: rental.status,
+    company_id: companyId,
   }
 }
 
@@ -98,13 +101,14 @@ function paymentFromRow(row: Record<string, unknown>): Payment {
   }
 }
 
-function paymentToRow(payment: Omit<Payment, 'id'>): Record<string, unknown> {
+function paymentToRow(payment: Omit<Payment, 'id'>, companyId: string): Record<string, unknown> {
   return {
     rental_id: payment.rentalId,
     client_id: payment.clientId,
     amount: payment.amount,
     date: payment.date,
     note: payment.note ?? null,
+    company_id: companyId,
   }
 }
 
@@ -119,13 +123,26 @@ function oilChangeRecordFromRow(row: Record<string, unknown>): OilChangeRecord {
   }
 }
 
-function oilChangeRecordToRow(record: Omit<OilChangeRecord, 'id'>): Record<string, unknown> {
+function oilChangeRecordToRow(
+  record: Omit<OilChangeRecord, 'id'>,
+  companyId: string,
+): Record<string, unknown> {
   return {
     car_id: record.carId,
     date: record.date,
     distance: record.distance,
     distance_unit: record.distanceUnit,
     note: record.note ?? null,
+    company_id: companyId,
+  }
+}
+
+function companyFromRow(row: Record<string, unknown>): Company {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    ownerEmail: row.owner_email != null ? String(row.owner_email) : undefined,
+    createdAt: String(row.created_at),
   }
 }
 
@@ -146,23 +163,58 @@ export async function fetchAppState(): Promise<AppState> {
   throwOnError(carsRes.error, 'Failed to load cars')
   throwOnError(clientsRes.error, 'Failed to load clients')
   throwOnError(rentalsRes.error, 'Failed to load rentals')
+  throwOnError(paymentsRes.error, 'Failed to load payments')
+  throwOnError(oilChangeRecordsRes.error, 'Failed to load oil change records')
 
   return {
     cars: (carsRes.data ?? []).map((r) => carFromRow(r as Record<string, unknown>)),
     clients: (clientsRes.data ?? []).map((r) => clientFromRow(r as Record<string, unknown>)),
     rentals: (rentalsRes.data ?? []).map((r) => rentalFromRow(r as Record<string, unknown>)),
-    payments: paymentsRes.error
-      ? []
-      : (paymentsRes.data ?? []).map((r) => paymentFromRow(r as Record<string, unknown>)),
-    oilChangeRecords: oilChangeRecordsRes.error
-      ? []
-      : (oilChangeRecordsRes.data ?? []).map((r) => oilChangeRecordFromRow(r as Record<string, unknown>)),
+    payments: (paymentsRes.data ?? []).map((r) => paymentFromRow(r as Record<string, unknown>)),
+    oilChangeRecords: (oilChangeRecordsRes.data ?? []).map((r) =>
+      oilChangeRecordFromRow(r as Record<string, unknown>),
+    ),
   }
 }
 
-export async function insertCar(car: Omit<Car, 'id'>): Promise<Car> {
+export async function listCompanies(): Promise<Company[]> {
   const supabase = getSupabase()
-  const { data, error } = await supabase.from('cars').insert(carToRow(car)).select().single()
+  const { data, error } = await supabase
+    .from('companies')
+    .select('id, name, owner_email, created_at')
+    .order('created_at', { ascending: false })
+  throwOnError(error, 'Failed to load companies')
+  return (data ?? []).map((r) => companyFromRow(r as Record<string, unknown>))
+}
+
+export async function createCompanyAccount(input: {
+  companyName: string
+  email: string
+  password: string
+}): Promise<{ companyId: string; userId: string }> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase.functions.invoke('create-company-account', {
+    body: input,
+  })
+
+  const payload = data as { companyId?: string; userId?: string; error?: string } | null
+  if (error) {
+    throw new Error(payload?.error || error.message || 'Failed to create company account')
+  }
+  if (payload?.error) throw new Error(payload.error)
+  if (!payload?.companyId || !payload?.userId) {
+    throw new Error('Unexpected response from create-company-account')
+  }
+  return { companyId: payload.companyId, userId: payload.userId }
+}
+
+export async function insertCar(car: Omit<Car, 'id'>, companyId: string): Promise<Car> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('cars')
+    .insert(carToRow(car, companyId))
+    .select()
+    .single()
   throwOnError(error, 'Failed to add car')
   return carFromRow(data as Record<string, unknown>)
 }
@@ -182,7 +234,9 @@ export async function updateCar(id: string, updates: Partial<Car>): Promise<Car>
   if (updates.color != null) row.color = updates.color
   if ('mechanicFeeDueDate' in updates) row.mechanic_fee_due_date = updates.mechanicFeeDueDate || null
   if ('oilChangeDueKm' in updates) row.oil_change_due_km = updates.oilChangeDueKm ?? null
-  if ('oilChangeDistanceUnit' in updates) row.oil_change_distance_unit = updates.oilChangeDistanceUnit ?? 'km'
+  if ('oilChangeDistanceUnit' in updates) {
+    row.oil_change_distance_unit = updates.oilChangeDistanceUnit ?? 'km'
+  }
 
   const { data, error } = await supabase.from('cars').update(row).eq('id', id).select().single()
   throwOnError(error, 'Failed to update car')
@@ -210,11 +264,11 @@ export async function deleteCar(id: string): Promise<void> {
   throwOnError(error, 'Failed to delete car')
 }
 
-export async function insertClient(client: Omit<Client, 'id'>): Promise<Client> {
+export async function insertClient(client: Omit<Client, 'id'>, companyId: string): Promise<Client> {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('clients')
-    .insert(clientToRow(client))
+    .insert(clientToRow(client, companyId))
     .select()
     .single()
   throwOnError(error, 'Failed to add client')
@@ -238,11 +292,11 @@ export async function updateClient(id: string, updates: Partial<Client>): Promis
   return clientFromRow(data as Record<string, unknown>)
 }
 
-export async function insertRental(rental: Omit<Rental, 'id'>): Promise<Rental> {
+export async function insertRental(rental: Omit<Rental, 'id'>, companyId: string): Promise<Rental> {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('rentals')
-    .insert(rentalToRow(rental))
+    .insert(rentalToRow(rental, companyId))
     .select()
     .single()
   throwOnError(error, 'Failed to add rental')
@@ -281,8 +335,9 @@ export async function deleteRental(id: string): Promise<void> {
 export async function persistNewRental(
   rental: Omit<Rental, 'id'>,
   carUpdate: Car,
+  companyId: string,
 ): Promise<Rental> {
-  const savedRental = await insertRental(rental)
+  const savedRental = await insertRental(rental, companyId)
   await updateCar(carUpdate.id, { status: carUpdate.status })
   return savedRental
 }
@@ -305,11 +360,14 @@ export async function persistExtendRental(rental: Rental): Promise<Rental> {
   })
 }
 
-export async function insertPayment(payment: Omit<Payment, 'id'>): Promise<Payment> {
+export async function insertPayment(
+  payment: Omit<Payment, 'id'>,
+  companyId: string,
+): Promise<Payment> {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('payments')
-    .insert(paymentToRow(payment))
+    .insert(paymentToRow(payment, companyId))
     .select()
     .single()
   throwOnError(error, 'Failed to add payment')
@@ -324,11 +382,12 @@ export async function deletePayment(id: string): Promise<void> {
 
 export async function insertOilChangeRecord(
   record: Omit<OilChangeRecord, 'id'>,
+  companyId: string,
 ): Promise<OilChangeRecord> {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('oil_change_records')
-    .insert(oilChangeRecordToRow(record))
+    .insert(oilChangeRecordToRow(record, companyId))
     .select()
     .single()
   throwOnError(error, 'Failed to add oil change record')

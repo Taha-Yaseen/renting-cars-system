@@ -8,10 +8,9 @@ import {
   type ReactNode,
 } from 'react'
 import type { AppState, Car, CarStatus, Client, OilChangeRecord, Payment, Rental } from '../types'
-import { isSupabaseConfigured } from '../lib/supabase'
-import { loadState, saveState, generateId } from '../utils/storage'
-import { canRentCar } from '../constants/carStatuses'
+import { useAuth } from './AuthContext'
 import * as db from '../services/supabaseDb'
+import { canRentCar } from '../constants/carStatuses'
 import {
   calculateRentalCost,
   deriveRentalStatus,
@@ -21,7 +20,7 @@ import {
 } from '../utils/calculations'
 import { isOverdue, todayISO } from '../utils/dates'
 import LoadingScreen from '../components/ui/LoadingScreen'
-  
+
 type RentalActionResult =
   | { success: true; rental: Rental }
   | { success: false; errorKey: string }
@@ -56,6 +55,7 @@ interface AppContextValue {
   error: string | null
   clearError: () => void
   useSupabase: boolean
+  companyName: string | null
   refetch: () => Promise<void>
   addCar: (carData: Omit<Car, 'id'>) => Promise<Car | null>
   updateCar: (id: string, updates: Partial<Car>) => Promise<void>
@@ -76,17 +76,19 @@ interface AppContextValue {
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
-const useSupabase = isSupabaseConfigured()
+
+const emptyState: AppState = {
+  cars: [],
+  clients: [],
+  rentals: [],
+  payments: [],
+  oilChangeRecords: [],
+}
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<AppState>(() => {
-    if (useSupabase) {
-      return { cars: [], clients: [], rentals: [], payments: [], oilChangeRecords: [] }
-    }
-    const loaded = loadState()
-    return { ...loaded, rentals: syncRentalStatuses(loaded.rentals) }
-  })
-  const [loading, setLoading] = useState(useSupabase)
+  const { companyId, companyName, signOut } = useAuth()
+  const [state, setState] = useState<AppState>(emptyState)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   const clearError = useCallback(() => setError(null), [])
@@ -96,17 +98,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const refetch = useCallback(async () => {
-    if (!useSupabase) return
+    if (!companyId) return
     try {
       const data = await db.fetchAppState()
       setState({ ...data, rentals: syncRentalStatuses(data.rentals) })
     } catch (err) {
       handleDbError(err, 'Failed to load data from Supabase')
     }
-  }, [handleDbError])
+  }, [companyId, handleDbError])
 
   useEffect(() => {
-    if (!useSupabase) return undefined
+    if (!companyId) {
+      setState(emptyState)
+      setLoading(false)
+      return undefined
+    }
 
     let cancelled = false
 
@@ -129,27 +135,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true
     }
-  }, [handleDbError])
-
-  useEffect(() => {
-    if (useSupabase || loading) return
-    saveState(state)
-  }, [state, loading])
+  }, [companyId, handleDbError])
 
   const actions = useMemo(
     () => ({
       addCar: async (carData: Omit<Car, 'id'>): Promise<Car | null> => {
+        if (!companyId) return null
         clearError()
         const payload: Omit<Car, 'id'> = { ...carData, status: carData.status || 'Available' }
-
-        if (!useSupabase) {
-          const car: Car = { ...payload, id: generateId('car') }
-          setState((s) => ({ ...s, cars: [...s.cars, car] }))
-          return car
-        }
-
         try {
-          const car = await db.insertCar(payload)
+          const car = await db.insertCar(payload, companyId)
           setState((s) => ({ ...s, cars: [...s.cars, car] }))
           return car
         } catch (err) {
@@ -165,8 +160,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...s,
           cars: s.cars.map((c) => (c.id === id ? { ...c, ...updates } : c)),
         }))
-
-        if (!useSupabase) return
 
         try {
           const car = await db.updateCar(id, updates)
@@ -192,8 +185,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...s,
           cars: s.cars.map((c) => (c.id === id ? { ...c, status: newStatus } : c)),
         }))
-
-        if (!useSupabase) return
 
         try {
           const car = await db.updateCar(id, { status: newStatus })
@@ -227,8 +218,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           oilChangeRecords: s.oilChangeRecords.filter((r) => r.carId !== id),
         }))
 
-        if (!useSupabase) return
-
         try {
           await db.deleteCar(id)
         } catch (err) {
@@ -238,17 +227,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
 
       addClient: async (clientData: Omit<Client, 'id'>): Promise<Client | null> => {
+        if (!companyId) return null
         clearError()
         const payload: Omit<Client, 'id'> = { ...clientData, status: clientData.status || 'Active' }
-
-        if (!useSupabase) {
-          const client: Client = { ...payload, id: generateId('client') }
-          setState((s) => ({ ...s, clients: [...s.clients, client] }))
-          return client
-        }
-
         try {
-          const client = await db.insertClient(payload)
+          const client = await db.insertClient(payload, companyId)
           setState((s) => ({ ...s, clients: [...s.clients, client] }))
           return client
         } catch (err) {
@@ -264,8 +247,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...s,
           clients: s.clients.map((c) => (c.id === id ? { ...c, ...updates } : c)),
         }))
-
-        if (!useSupabase) return
 
         try {
           const client = await db.updateClient(id, updates)
@@ -291,6 +272,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         endDate,
         dailyRate,
       }: NewRentalInput): Promise<RentalActionResult> => {
+        if (!companyId) return { success: false, errorKey: 'rentals.errors.saveFailed' }
         clearError()
         const car = state.cars.find((c) => c.id === carId)
         const client = state.clients.find((c) => c.id === clientId)
@@ -314,7 +296,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         const totalCost = calculateRentalCost(rate, startDate, normalizedEndDate)
         const rental: Rental = {
-          id: useSupabase ? 'pending' : generateId('rental'),
+          id: 'pending',
           carId,
           clientId,
           startDate,
@@ -324,16 +306,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           status: 'Active',
         }
         const updatedCar: Car = { ...car, status: 'Rented' }
-
-        if (!useSupabase) {
-          setState((s) => ({
-            ...s,
-            rentals: [...s.rentals, rental],
-            cars: s.cars.map((c) => (c.id === carId ? updatedCar : c)),
-          }))
-          return { success: true, rental }
-        }
-
         const snapshot = state
         setState((s) => ({
           ...s,
@@ -343,7 +315,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         try {
           const { id: _pendingId, ...rentalPayload } = rental
-          const saved = await db.persistNewRental(rentalPayload, updatedCar)
+          const saved = await db.persistNewRental(rentalPayload, updatedCar, companyId)
           setState((s) => ({
             ...s,
             rentals: s.rentals.map((r) => (r.id === 'pending' ? saved : r)),
@@ -414,10 +386,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           }),
         }))
 
-        if (!useSupabase) {
-          return { success: true, rental: updatedRental }
-        }
-
         try {
           const saved = await db.updateRental(rentalId, updatedRental)
           if (updatedOldCar) await db.updateCar(updatedOldCar.id, { status: 'Available' })
@@ -450,8 +418,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           payments: s.payments.filter((p) => p.rentalId !== rentalId),
           cars: updatedCar ? s.cars.map((c) => (c.id === updatedCar.id ? updatedCar : c)) : s.cars,
         }))
-
-        if (!useSupabase) return
 
         try {
           await db.deleteRental(rentalId)
@@ -499,10 +465,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...s,
           rentals: s.rentals.map((r) => (r.id === rentalId ? updated : r)),
         }))
-
-        if (!useSupabase) {
-          return { success: true, rental: updated, previousTotal: rental.totalCost }
-        }
 
         try {
           const saved = await db.persistExtendRental(updated)
@@ -553,10 +515,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
             : s.cars,
         }))
 
-        if (!useSupabase) {
-          return { success: true, rental: completedRental }
-        }
-
         if (!updatedCar) {
           return { success: false, errorKey: 'rentals.errors.rentalNotFound' }
         }
@@ -582,8 +540,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         setState((s) => ({ ...s, rentals: synced }))
 
-        if (!useSupabase) return
-
         try {
           await Promise.all(changed.map((r) => db.updateRental(r.id, { status: r.status })))
         } catch (err) {
@@ -592,15 +548,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       },
 
       addPayment: async (paymentData: Omit<Payment, 'id'>): Promise<Payment | null> => {
+        if (!companyId) return null
         clearError()
-        if (!useSupabase) {
-          const payment: Payment = { ...paymentData, id: generateId('pay') }
-          setState((s) => ({ ...s, payments: [...s.payments, payment] }))
-          return payment
-        }
-
         try {
-          const payment = await db.insertPayment(paymentData)
+          const payment = await db.insertPayment(paymentData, companyId)
           setState((s) => ({ ...s, payments: [...s.payments, payment] }))
           return payment
         } catch (err) {
@@ -612,9 +563,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       deletePayment: async (id: string): Promise<void> => {
         clearError()
         setState((s) => ({ ...s, payments: s.payments.filter((p) => p.id !== id) }))
-
-        if (!useSupabase) return
-
         try {
           await db.deletePayment(id)
         } catch (err) {
@@ -625,15 +573,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addOilChangeRecord: async (
         recordData: Omit<OilChangeRecord, 'id'>,
       ): Promise<OilChangeRecord | null> => {
+        if (!companyId) return null
         clearError()
-        if (!useSupabase) {
-          const record: OilChangeRecord = { ...recordData, id: generateId('oil') }
-          setState((s) => ({ ...s, oilChangeRecords: [...s.oilChangeRecords, record] }))
-          return record
-        }
-
         try {
-          const record = await db.insertOilChangeRecord(recordData)
+          const record = await db.insertOilChangeRecord(recordData, companyId)
           setState((s) => ({ ...s, oilChangeRecords: [...s.oilChangeRecords, record] }))
           return record
         } catch (err) {
@@ -648,9 +591,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...s,
           oilChangeRecords: s.oilChangeRecords.filter((r) => r.id !== id),
         }))
-
-        if (!useSupabase) return
-
         try {
           await db.deleteOilChangeRecord(id)
         } catch (err) {
@@ -658,7 +598,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       },
     }),
-    [state, clearError, handleDbError],
+    [state, companyId, clearError, handleDbError],
   )
 
   const value = useMemo<AppContextValue>(
@@ -671,11 +611,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       clearError,
-      useSupabase,
+      useSupabase: true,
+      companyName,
       refetch,
       ...actions,
     }),
-    [state, actions, loading, error, clearError, refetch],
+    [state, actions, loading, error, clearError, refetch, companyName],
   )
 
   useEffect(() => {
@@ -685,11 +626,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const changed = updated.filter((r, i) => r.status !== s.rentals[i]?.status)
         if (changed.length === 0) return s
 
-        if (useSupabase) {
-          Promise.all(
-            changed.map((r) => db.updateRental(r.id, { status: r.status })),
-          ).catch((err) => handleDbError(err, 'Failed to sync overdue rentals'))
-        }
+        Promise.all(
+          changed.map((r) => db.updateRental(r.id, { status: r.status })),
+        ).catch((err) => handleDbError(err, 'Failed to sync overdue rentals'))
 
         return { ...s, rentals: updated }
       })
@@ -709,13 +648,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
           className="fixed inset-x-4 top-4 z-50 mx-auto flex max-w-lg items-start justify-between gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800 shadow-lg sm:inset-x-auto sm:right-6 sm:left-auto"
         >
           <span>{error}</span>
-          <button
-            type="button"
-            onClick={clearError}
-            className="shrink-0 font-medium underline hover:no-underline"
-          >
-            Dismiss
-          </button>
+          <div className="flex shrink-0 gap-3">
+            <button
+              type="button"
+              onClick={() => void signOut()}
+              className="font-medium underline hover:no-underline"
+            >
+              Sign out
+            </button>
+            <button
+              type="button"
+              onClick={clearError}
+              className="font-medium underline hover:no-underline"
+            >
+              Dismiss
+            </button>
+          </div>
         </div>
       )}
       {children}

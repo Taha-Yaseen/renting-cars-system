@@ -1,7 +1,6 @@
 import { jsPDF } from 'jspdf'
 import html2canvas from 'html2canvas'
 import type { Car, Client, Payment, Rental } from '../types'
-import { BUSINESS_OWNER } from '../config/business'
 import { daysBetween, formatDate, todayISO } from './dates'
 import {
   deriveRentalStatus,
@@ -57,9 +56,18 @@ interface ReceiptParams {
   payments: Payment[]
   locale: string
   labels: ReceiptLabels
+  companyName: string
 }
 
-function buildReceiptElement({ rental, car, client, payments, locale, labels }: ReceiptParams): HTMLDivElement {
+function buildReceiptElement({
+  rental,
+  car,
+  client,
+  payments,
+  locale,
+  labels,
+  companyName,
+}: ReceiptParams): HTMLDivElement {
   const dir = locale === 'ar' ? 'rtl' : 'ltr'
   const fontFamily =
     locale === 'ar'
@@ -98,7 +106,7 @@ function buildReceiptElement({ rental, car, client, payments, locale, labels }: 
     justifyContent: 'center',
   })
   text(header, labels.title, { color: '#ffffff', fontSize: '24px', fontWeight: '700' })
-  text(header, BUSINESS_OWNER, { color: '#ffffff', fontSize: '13px', marginTop: '8px' }, 'ltr')
+  text(header, companyName, { color: '#ffffff', fontSize: '13px', marginTop: '8px' }, 'ltr')
   root.appendChild(header)
 
   const body = document.createElement('div')
@@ -236,8 +244,24 @@ function buildReceiptElement({ rental, car, client, payments, locale, labels }: 
   return root
 }
 
-export async function downloadRentalReceipt({ rental, car, client, payments, locale, labels }: ReceiptParams): Promise<void> {
-  const element = buildReceiptElement({ rental, car, client, payments, locale, labels })
+export async function downloadRentalReceipt({
+  rental,
+  car,
+  client,
+  payments,
+  locale,
+  labels,
+  companyName,
+}: ReceiptParams): Promise<void> {
+  const element = buildReceiptElement({
+    rental,
+    car,
+    client,
+    payments,
+    locale,
+    labels,
+    companyName,
+  })
   Object.assign(element.style, { position: 'fixed', top: '0', left: '-10000px' })
   document.body.appendChild(element)
 

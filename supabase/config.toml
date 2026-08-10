@@ -1,0 +1,5 @@
+# Edge Functions config for DriveRent SaaS
+# Deploy: supabase functions deploy create-company-account
+
+[functions.create-company-account]
+verify_jwt = true
