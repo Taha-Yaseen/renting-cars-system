@@ -3,6 +3,7 @@ import { navItems } from '../../config/navigation'
 import { useApp } from '../../context/AppContext'
 import { useAuth } from '../../context/AuthContext'
 import { useLocale } from '../../context/LocaleContext'
+import { displayUsername } from '../../lib/usernameAuth'
 import LanguageSwitcher from '../ui/LanguageSwitcher'
 
 interface Props {
@@ -14,6 +15,7 @@ export default function Sidebar({ activeView, onNavigate }: Props) {
   const { t } = useLocale()
   const { companyName } = useApp()
   const { signOut, user } = useAuth()
+  const username = displayUsername(user)
 
   return (
     <aside className="hidden w-64 shrink-0 flex-col border-e border-zinc-200 bg-white lg:sticky lg:top-0 lg:flex lg:h-screen lg:self-start">
@@ -52,9 +54,9 @@ export default function Sidebar({ activeView, onNavigate }: Props) {
       </nav>
 
       <div className="space-y-3 border-t border-zinc-100 px-6 py-4">
-        {user?.email && (
-          <p className="truncate text-xs text-zinc-500" title={user.email}>
-            {user.email}
+        {username && (
+          <p className="truncate text-xs text-zinc-500" title={username}>
+            {username}
           </p>
         )}
         <button

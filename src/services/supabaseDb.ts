@@ -141,7 +141,7 @@ function companyFromRow(row: Record<string, unknown>): Company {
   return {
     id: String(row.id),
     name: String(row.name),
-    ownerEmail: row.owner_email != null ? String(row.owner_email) : undefined,
+    ownerUsername: row.owner_username != null ? String(row.owner_username) : undefined,
     createdAt: String(row.created_at),
   }
 }
@@ -181,7 +181,7 @@ export async function listCompanies(): Promise<Company[]> {
   const supabase = getSupabase()
   const { data, error } = await supabase
     .from('companies')
-    .select('id, name, owner_email, created_at')
+    .select('id, name, owner_username, created_at')
     .order('created_at', { ascending: false })
   throwOnError(error, 'Failed to load companies')
   return (data ?? []).map((r) => companyFromRow(r as Record<string, unknown>))
@@ -189,7 +189,7 @@ export async function listCompanies(): Promise<Company[]> {
 
 export async function createCompanyAccount(input: {
   companyName: string
-  email: string
+  username: string
   password: string
 }): Promise<{ companyId: string; userId: string }> {
   const supabase = getSupabase()

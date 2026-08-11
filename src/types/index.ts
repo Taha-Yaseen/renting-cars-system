@@ -6,7 +6,7 @@ export type CompanyMemberRole = 'owner'
 export interface Company {
   id: string
   name: string
-  ownerEmail?: string
+  ownerUsername?: string
   createdAt: string
 }
 

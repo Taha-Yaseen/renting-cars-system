@@ -13,6 +13,7 @@ import LoginPage from './components/auth/LoginPage'
 import AdminDashboard from './components/admin/AdminDashboard'
 import LoadingScreen from './components/ui/LoadingScreen'
 import LanguageSwitcher from './components/ui/LanguageSwitcher'
+import { displayUsername } from './lib/usernameAuth'
 
 function AppShell() {
   const { refetch } = useApp()
@@ -82,6 +83,7 @@ function AppShell() {
 function NoCompanyAccess() {
   const { t } = useLocale()
   const { signOut, user } = useAuth()
+  const username = displayUsername(user)
 
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center bg-zinc-50 px-4">
@@ -91,8 +93,8 @@ function NoCompanyAccess() {
       <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-8 text-center shadow-sm">
         <h1 className="text-lg font-bold text-zinc-900">{t('auth.noCompanyTitle')}</h1>
         <p className="mt-2 text-sm text-zinc-600">{t('auth.noCompanyMessage')}</p>
-        {user?.email && (
-          <p className="mt-3 text-xs text-zinc-500">{user.email}</p>
+        {username && (
+          <p className="mt-3 text-xs text-zinc-500">{username}</p>
         )}
         <button
           type="button"
@@ -123,13 +125,13 @@ function ConfigMissing() {
 }
 
 function Root() {
-  const { loading, session, isPlatformAdmin, companyId } = useAuth()
+  const { loading, membershipReady, session, isPlatformAdmin, companyId } = useAuth()
 
   if (!isSupabaseConfigured()) {
     return <ConfigMissing />
   }
 
-  if (loading) {
+  if (loading || (session && !membershipReady)) {
     return <LoadingScreen />
   }
 

@@ -6,7 +6,7 @@ create extension if not exists "pgcrypto";
 -- ---------------------------------------------------------------------------
 -- EDIT THESE before running (optional but recommended)
 -- ---------------------------------------------------------------------------
--- Default company name / owner email for your existing data:
+-- Default company name for your existing data:
 --   (change the insert below if you prefer different values)
 
 -- ---------------------------------------------------------------------------
@@ -16,7 +16,7 @@ create extension if not exists "pgcrypto";
 create table if not exists public.companies (
   id uuid primary key default gen_random_uuid(),
   name text not null,
-  owner_email text,
+  owner_username text,
   created_at timestamptz not null default now()
 );
 
@@ -94,7 +94,7 @@ begin
   limit 1;
 
   if v_company_id is null then
-    insert into public.companies (name, owner_email)
+    insert into public.companies (name, owner_username)
     values ('Legacy Company', null)
     returning id into v_company_id;
   end if;
@@ -240,7 +240,7 @@ create policy "payments_tenant_all"
 --
 -- 1) Optional: rename the auto-created company
 --    update public.companies
---    set name = 'Your Real Company Name', owner_email = 'owner@email.com'
+--    set name = 'Your Real Company Name', owner_username = 'owner_username'
 --    where id = (select id from public.companies order by created_at limit 1);
 --
 -- 2) Create Auth users in Dashboard (platform admin + company owner).

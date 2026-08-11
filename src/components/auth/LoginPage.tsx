@@ -7,7 +7,7 @@ import LanguageSwitcher from '../ui/LanguageSwitcher'
 export default function LoginPage() {
   const { t } = useLocale()
   const { signIn, authError, clearAuthError } = useAuth()
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [localError, setLocalError] = useState<string | null>(null)
@@ -18,7 +18,7 @@ export default function LoginPage() {
     setLocalError(null)
     setSubmitting(true)
     try {
-      const result = await signIn(email.trim(), password)
+      const result = await signIn(username, password)
       if (!result.ok) setLocalError(result.error)
     } finally {
       setSubmitting(false)
@@ -47,16 +47,19 @@ export default function LoginPage() {
 
           <form onSubmit={onSubmit} className="space-y-4">
             <div>
-              <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                {t('auth.email')}
+              <label htmlFor="username" className="mb-1.5 block text-sm font-medium text-zinc-700">
+                {t('auth.username')}
               </label>
               <input
-                id="email"
-                type="email"
-                autoComplete="email"
+                id="username"
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                autoCorrect="off"
+                spellCheck={false}
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm text-zinc-900 outline-none ring-indigo-500 focus:ring-2"
               />
             </div>

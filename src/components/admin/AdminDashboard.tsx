@@ -3,6 +3,7 @@ import { Building2, LogOut, Plus, Shield } from 'lucide-react'
 import type { Company } from '../../types'
 import { useAuth } from '../../context/AuthContext'
 import { useLocale } from '../../context/LocaleContext'
+import { displayUsername } from '../../lib/usernameAuth'
 import { createCompanyAccount, listCompanies } from '../../services/supabaseDb'
 import LanguageSwitcher from '../ui/LanguageSwitcher'
 import LoadingScreen from '../ui/LoadingScreen'
@@ -17,7 +18,7 @@ export default function AdminDashboard() {
   const [submitting, setSubmitting] = useState(false)
 
   const [companyName, setCompanyName] = useState('')
-  const [email, setEmail] = useState('')
+  const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
 
   const loadCompanies = useCallback(async () => {
@@ -44,11 +45,11 @@ export default function AdminDashboard() {
     try {
       await createCompanyAccount({
         companyName: companyName.trim(),
-        email: email.trim(),
+        username: username.trim(),
         password,
       })
       setCompanyName('')
-      setEmail('')
+      setUsername('')
       setPassword('')
       setSuccess(t('admin.createSuccess'))
       await loadCompanies()
@@ -62,6 +63,7 @@ export default function AdminDashboard() {
   if (loading) return <LoadingScreen />
 
   const dateLocale = locale === 'ar' ? 'ar' : 'en'
+  const adminLabel = displayUsername(user)
 
   return (
     <div className="min-h-dvh bg-zinc-100">
@@ -93,7 +95,7 @@ export default function AdminDashboard() {
       <main className="mx-auto max-w-5xl space-y-8 px-4 py-8 sm:px-6">
         <p className="text-sm text-zinc-600">
           {t('admin.signedInAs')}{' '}
-          <span className="font-medium text-zinc-900">{user?.email}</span>
+          <span className="font-medium text-zinc-900">{adminLabel}</span>
         </p>
 
         <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
@@ -117,15 +119,18 @@ export default function AdminDashboard() {
               />
             </div>
             <div>
-              <label htmlFor="ownerEmail" className="mb-1.5 block text-sm font-medium text-zinc-700">
-                {t('admin.ownerEmail')}
+              <label htmlFor="ownerUsername" className="mb-1.5 block text-sm font-medium text-zinc-700">
+                {t('admin.ownerUsername')}
               </label>
               <input
-                id="ownerEmail"
-                type="email"
+                id="ownerUsername"
+                type="text"
+                autoComplete="off"
+                autoCapitalize="none"
+                spellCheck={false}
                 required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
                 className="w-full rounded-lg border border-zinc-300 px-3 py-2.5 text-sm outline-none ring-zinc-800 focus:ring-2"
               />
             </div>
@@ -180,7 +185,7 @@ export default function AdminDashboard() {
                 <thead>
                   <tr className="border-b border-zinc-200 text-zinc-500">
                     <th className="px-2 py-2 font-medium">{t('admin.companyName')}</th>
-                    <th className="px-2 py-2 font-medium">{t('admin.ownerEmail')}</th>
+                    <th className="px-2 py-2 font-medium">{t('admin.ownerUsername')}</th>
                     <th className="px-2 py-2 font-medium">{t('admin.createdAt')}</th>
                   </tr>
                 </thead>
@@ -188,7 +193,7 @@ export default function AdminDashboard() {
                   {companies.map((c) => (
                     <tr key={c.id} className="border-b border-zinc-100 text-zinc-800">
                       <td className="px-2 py-3 font-medium">{c.name}</td>
-                      <td className="px-2 py-3">{c.ownerEmail || t('common.emDash')}</td>
+                      <td className="px-2 py-3">{c.ownerUsername || t('common.emDash')}</td>
                       <td className="px-2 py-3">
                         {new Date(c.createdAt).toLocaleDateString(dateLocale)}
                       </td>

@@ -55,10 +55,14 @@ Then run these follow-ups (replace UUIDs / names):
 ```sql
 -- Rename the migrated company
 update public.companies
-set name = 'Your Real Company Name', owner_email = 'owner@email.com'
+set name = 'Your Real Company Name', owner_username = 'owner_username'
 where id = (select id from public.companies order by created_at limit 1);
 
 -- After creating Auth users in the dashboard:
+-- Prefer username-style accounts. In Authentication → Users → Add user,
+-- set email to: <username>@users.driverent.local  (example: abo_waleed@users.driverent.local)
+-- Then the app login uses only the username part (abo_waleed).
+
 insert into public.platform_admins (user_id) values ('<admin-user-uuid>');
 
 insert into public.company_members (company_id, user_id, role)
@@ -68,6 +72,8 @@ values (
   'owner'
 );
 ```
+
+Also run [`012_owner_username.sql`](supabase/migrations/012_owner_username.sql) if you already applied an older `011` that used `owner_email`.
 
 Do **not** recreate that same company in the admin UI — it already owns your old rows. Use the admin UI only for *new* companies afterward.
 
@@ -96,7 +102,13 @@ The function uses `SUPABASE_SERVICE_ROLE_KEY` (injected automatically in Supabas
 
 ### 6. Create a company account
 
-In the admin UI: company name + owner email + password → Create. Share credentials with the company owner securely. They log in and only see their data.
+In the admin UI: company name + owner **username** + password → Create. Share credentials with the company owner securely. They log in with username (not email) and only see their data.
+
+Under the hood, Auth stores `<username>@users.driverent.local` — redeploy the Edge Function after pulling these changes:
+
+```bash
+supabase functions deploy create-company-account
+```
 
 ## GitHub Pages
 

@@ -5,10 +5,23 @@ const corsHeaders: Record<string, string> = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
+const AUTH_EMAIL_DOMAIN = 'users.driverent.local'
+const USERNAME_RE = /^[a-z0-9][a-z0-9._-]{1,30}[a-z0-9]$|^[a-z0-9]{2,32}$/
+
 interface CreateCompanyAccountBody {
   companyName?: string
+  username?: string
+  /** @deprecated use username */
   email?: string
   password?: string
+}
+
+function normalizeUsername(raw: string): string {
+  return raw.trim().toLowerCase()
+}
+
+function usernameToAuthEmail(username: string): string {
+  return `${username}@${AUTH_EMAIL_DOMAIN}`
 }
 
 Deno.serve(async (req) => {
@@ -64,20 +77,34 @@ Deno.serve(async (req) => {
 
     const body = (await req.json()) as CreateCompanyAccountBody
     const companyName = body.companyName?.trim() ?? ''
-    const email = body.email?.trim().toLowerCase() ?? ''
+    const rawUsername = body.username?.trim() || body.email?.trim() || ''
+    const username = normalizeUsername(rawUsername)
     const password = body.password ?? ''
 
-    if (!companyName || !email || password.length < 6) {
+    if (!companyName || !username || password.length < 6) {
       return jsonResponse(
-        { error: 'companyName, email, and password (min 6 chars) are required' },
+        { error: 'companyName, username, and password (min 6 chars) are required' },
         400,
       )
     }
+
+    if (!USERNAME_RE.test(username) || username.includes('@')) {
+      return jsonResponse(
+        {
+          error:
+            'username must be 2–32 characters: letters, numbers, dots, underscores, or hyphens',
+        },
+        400,
+      )
+    }
+
+    const email = usernameToAuthEmail(username)
 
     const { data: createdUser, error: createUserError } = await adminClient.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
+      user_metadata: { username },
     })
 
     if (createUserError || !createdUser.user) {
@@ -91,7 +118,7 @@ Deno.serve(async (req) => {
 
     const { data: company, error: companyError } = await adminClient
       .from('companies')
-      .insert({ name: companyName, owner_email: email })
+      .insert({ name: companyName, owner_username: username })
       .select('id')
       .single()
 
@@ -115,7 +142,7 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: memberError.message }, 500)
     }
 
-    return jsonResponse({ companyId: company.id, userId })
+    return jsonResponse({ companyId: company.id, userId, username })
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Unexpected error'
     return jsonResponse({ error: message }, 500)
