@@ -36,12 +36,34 @@ export function formatDate(dateStr: string, locale = 'en'): string {
   })
 }
 
-export function todayISO(): string {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = String(now.getMonth() + 1).padStart(2, '0')
-  const d = String(now.getDate()).padStart(2, '0')
+export function dateToISO(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
   return `${y}-${m}-${d}`
+}
+
+export function todayISO(): string {
+  return dateToISO(new Date())
+}
+
+export function addDaysISO(iso: string, days: number): string {
+  const date = new Date(iso + 'T00:00:00')
+  date.setDate(date.getDate() + days)
+  return dateToISO(date)
+}
+
+/** Inclusive end date used to place a rental on the dashboard calendar. */
+export function getRentalCalendarEndDate(
+  rental: Pick<Rental, 'startDate' | 'endDate' | 'status'>,
+): string {
+  if (rental.status === 'Completed') {
+    return rental.endDate || rental.startDate
+  }
+  const today = todayISO()
+  if (!rental.endDate) return today
+  if (rental.status === 'Overdue' && rental.endDate < today) return today
+  return rental.endDate
 }
 
 export function getEffectiveEndDate(rental: Pick<Rental, 'endDate'>): string {

@@ -20,6 +20,7 @@ import { formatNumber } from '../../utils/format'
 import KpiCard from '../ui/KpiCard'
 import PageHeader from '../ui/PageHeader'
 import StatusBadge from '../ui/StatusBadge'
+import RentalCalendar from './RentalCalendar'
 
 interface ActivityRowsProps {
   rentals: Rental[]
@@ -123,6 +124,8 @@ export default function Dashboard({ onNavigate, onNewRental, onAddCar }: Props) 
           accent="violet"
         />
       </div>
+
+      <RentalCalendar rentals={rentals} cars={cars} clients={clients} />
 
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm sm:p-6 lg:col-span-1">

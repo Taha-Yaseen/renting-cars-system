@@ -21,6 +21,12 @@ export const CAR_COLORS: CarColorOption[] = [
   { value: 'purple', hex: '#7C3AED' },
 ]
 
+const LIGHT_CAR_COLORS = new Set(['white', 'silver', 'beige', 'yellow', 'gold'])
+
 export function getCarColorHex(value: string): string {
   return CAR_COLORS.find((c) => c.value === value)?.hex ?? '#808080'
+}
+
+export function isLightCarColor(value: string): boolean {
+  return LIGHT_CAR_COLORS.has(value)
 }
