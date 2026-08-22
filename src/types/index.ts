@@ -2,6 +2,12 @@ export type CarStatus = 'Available' | 'Rented' | 'Maintenance' | 'Sold'
 export type ClientStatus = 'Active' | 'Suspended'
 export type RentalStatus = 'Active' | 'Completed' | 'Overdue'
 export type CompanyMemberRole = 'owner'
+export type RentalNotificationKind =
+  | 'overdue'
+  | 'payment_due'
+  | 'oil_change_due'
+  | 'mechanic_fee_due'
+  | 'other'
 
 export interface Company {
   id: string
@@ -63,10 +69,20 @@ export interface OilChangeRecord {
   note?: string
 }
 
+export interface RentalNotification {
+  id: string
+  rentalId: string
+  kind: RentalNotificationKind
+  dueDate: string
+  note?: string
+  isSystem: boolean
+}
+
 export interface AppState {
   cars: Car[]
   clients: Client[]
   rentals: Rental[]
   payments: Payment[]
   oilChangeRecords: OilChangeRecord[]
+  notifications: RentalNotification[]
 }

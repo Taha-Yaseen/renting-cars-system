@@ -7,6 +7,7 @@ import { canRentCar } from '../../constants/carStatuses'
 import { formatNumber } from '../../utils/format'
 import { calculateRentalCost } from '../../utils/calculations'
 import { daysBetween } from '../../utils/dates'
+import RentalNotificationsSection from '../notifications/RentalNotificationsSection'
 
 interface SubmitResult {
   success: boolean
@@ -189,13 +190,24 @@ export default function EditRentalForm({ rental, onSubmit, onCancel }: Props) {
             {t('rentals.endDate')}
             <span className="ms-1 font-normal text-zinc-400">({t('common.optional')})</span>
           </label>
-          <input
-            type="date"
-            value={form.endDate}
-            min={form.startDate}
-            onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-            className={`w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.endDate ? 'border-red-300' : 'border-zinc-200'}`}
-          />
+          <div className="flex gap-2">
+            <input
+              type="date"
+              value={form.endDate}
+              min={form.startDate}
+              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              className={`min-w-0 flex-1 rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.endDate ? 'border-red-300' : 'border-zinc-200'}`}
+            />
+            {form.endDate && (
+              <button
+                type="button"
+                onClick={() => setForm({ ...form, endDate: '' })}
+                className="shrink-0 rounded-lg border border-zinc-200 px-3 py-2 text-sm font-medium text-zinc-600 hover:bg-zinc-50"
+              >
+                {t('rentals.clearEndDate')}
+              </button>
+            )}
+          </div>
           {errors.endDate && <p className="mt-1 text-xs text-red-500">{errors.endDate}</p>}
           {!form.endDate && (
             <p className="mt-1 text-xs text-zinc-500">{t('rentals.openEndedHint')}</p>
@@ -220,6 +232,8 @@ export default function EditRentalForm({ rental, onSubmit, onCancel }: Props) {
           </p>
         </div>
       )}
+
+      <RentalNotificationsSection rental={rental} endDate={form.endDate} />
 
       {submitError && (
         <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-600">{submitError}</p>

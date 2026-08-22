@@ -128,4 +128,5 @@ export const initialState: AppState = {
   ],
   payments: [],
   oilChangeRecords: [],
+  notifications: [],
 }

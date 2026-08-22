@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { ArrowLeftRight, CalendarPlus, Download, FileText, Pencil, Plus, Search, Trash2, Wallet } from 'lucide-react'
+import { ArrowLeftRight, Bell, CalendarPlus, Download, FileText, Pencil, Plus, Search, Trash2, Wallet } from 'lucide-react'
 import type { Payment, Rental, RentalStatus } from '../../types'
 import { useApp } from '../../context/AppContext'
 import { useLocale } from '../../context/LocaleContext'
@@ -17,6 +17,7 @@ import {
   isCustomRentalRate,
 } from '../../utils/calculations'
 import { formatNumber } from '../../utils/format'
+import { dueNotifications } from '../../utils/notifications'
 import { downloadRentalReceipt } from '../../utils/receiptPdf'
 import Modal from '../ui/Modal'
 import ConfirmDialog from '../ui/ConfirmDialog'
@@ -42,7 +43,7 @@ interface Props {
 }
 
 export default function RentalContent({ openAddOnMount = false }: Props) {
-  const { rentals, cars, clients, payments, companyName, addRental, editRental, deleteRental, returnCar, extendRental, addPayment, deletePayment } = useApp()
+  const { rentals, cars, clients, payments, notifications, companyName, addRental, editRental, deleteRental, returnCar, extendRental, addPayment, deletePayment } = useApp()
   const { locale, t } = useLocale()
   const [filter, setFilter] = useState<RentalFilter>('all')
   const [search, setSearch] = useState('')
@@ -374,6 +375,7 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
           {sorted.map((rental) => {
             const car = getCar(rental.carId)
             const client = getClient(rental.clientId)
+            const rentalDueCount = dueNotifications(notifications, [rental]).length
             return (
               <div
                 key={rental.id}
@@ -386,6 +388,12 @@ export default function RentalContent({ openAddOnMount = false }: Props) {
                         {car ? `${car.make} ${car.model}` : t('rentals.unknownCar')}
                       </h3>
                       <StatusBadge status={rental.status} />
+                      {rentalDueCount > 0 && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-xs font-medium text-amber-700 ring-1 ring-inset ring-amber-600/20">
+                          <Bell className="h-3 w-3" />
+                          {rentalDueCount}
+                        </span>
+                      )}
                     </div>
                     <p className="mt-1 text-sm text-zinc-500">
                       <span className="font-medium text-zinc-700">

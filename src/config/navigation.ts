@@ -1,5 +1,5 @@
 import type { LucideIcon } from 'lucide-react'
-import { Car, LayoutDashboard, Users, FileText } from 'lucide-react'
+import { Bell, Car, LayoutDashboard, Users, FileText } from 'lucide-react'
 
 export interface NavItem {
   id: string
@@ -11,4 +11,5 @@ export const navItems: NavItem[] = [
   { id: 'cars', icon: Car },
   { id: 'clients', icon: Users },
   { id: 'rentals', icon: FileText },
+  { id: 'notifications', icon: Bell },
 ]

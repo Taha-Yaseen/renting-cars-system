@@ -9,6 +9,7 @@ import Dashboard from './components/dashboard/Dashboard'
 import CarContent from './components/cars/CarContent'
 import ClientContent from './components/clients/ClientContent'
 import RentalContent from './components/rentals/RentalContent'
+import NotificationContent from './components/notifications/NotificationContent'
 import LoginPage from './components/auth/LoginPage'
 import AdminDashboard from './components/admin/AdminDashboard'
 import LoadingScreen from './components/ui/LoadingScreen'
@@ -62,6 +63,8 @@ function AppShell() {
             key={openRentalModal ? 'rental-open' : 'rental'}
           />
         )
+      case 'notifications':
+        return <NotificationContent />
       default:
         return <Dashboard onNavigate={setActiveView} />
     }

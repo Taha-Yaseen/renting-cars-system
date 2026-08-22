@@ -7,7 +7,7 @@ import {
   useState,
   type ReactNode,
 } from 'react'
-import type { AppState, Car, CarStatus, Client, OilChangeRecord, Payment, Rental } from '../types'
+import type { AppState, Car, CarStatus, Client, OilChangeRecord, Payment, Rental, RentalNotification } from '../types'
 import { useAuth } from './AuthContext'
 import * as db from '../services/supabaseDb'
 import { canRentCar } from '../constants/carStatuses'
@@ -19,6 +19,7 @@ import {
   syncRentalStatuses,
 } from '../utils/calculations'
 import { isOverdue, todayISO } from '../utils/dates'
+import { replaceOverdueNotification } from '../utils/notifications'
 import LoadingScreen from '../components/ui/LoadingScreen'
 
 type RentalActionResult =
@@ -51,6 +52,7 @@ interface AppContextValue {
   rentals: Rental[]
   payments: Payment[]
   oilChangeRecords: OilChangeRecord[]
+  notifications: RentalNotification[]
   loading: boolean
   error: string | null
   clearError: () => void
@@ -73,6 +75,10 @@ interface AppContextValue {
   deletePayment: (id: string) => Promise<void>
   addOilChangeRecord: (record: Omit<OilChangeRecord, 'id'>) => Promise<OilChangeRecord | null>
   deleteOilChangeRecord: (id: string) => Promise<void>
+  addNotification: (
+    notification: Omit<RentalNotification, 'id' | 'isSystem'>,
+  ) => Promise<RentalNotification | null>
+  deleteNotification: (id: string) => Promise<void>
 }
 
 const AppContext = createContext<AppContextValue | null>(null)
@@ -83,6 +89,7 @@ const emptyState: AppState = {
   rentals: [],
   payments: [],
   oilChangeRecords: [],
+  notifications: [],
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -216,6 +223,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           rentals: s.rentals.filter((r) => r.carId !== id),
           payments: s.payments.filter((p) => !rentalIds.has(p.rentalId)),
           oilChangeRecords: s.oilChangeRecords.filter((r) => r.carId !== id),
+          notifications: s.notifications.filter((n) => !rentalIds.has(n.rentalId)),
         }))
 
         try {
@@ -316,10 +324,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         try {
           const { id: _pendingId, ...rentalPayload } = rental
           const saved = await db.persistNewRental(rentalPayload, updatedCar, companyId)
+          const overdue = await db.syncOverdueNotification(saved, companyId)
           setState((s) => ({
             ...s,
             rentals: s.rentals.map((r) => (r.id === 'pending' ? saved : r)),
             cars: s.cars.map((c) => (c.id === carId ? updatedCar : c)),
+            notifications: replaceOverdueNotification(s.notifications, saved.id, overdue),
           }))
           return { success: true, rental: saved }
         } catch (err) {
@@ -390,9 +400,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           const saved = await db.updateRental(rentalId, updatedRental)
           if (updatedOldCar) await db.updateCar(updatedOldCar.id, { status: 'Available' })
           if (updatedNewCar) await db.updateCar(updatedNewCar.id, { status: 'Rented' })
+          const overdue = companyId
+            ? await db.syncOverdueNotification(saved, companyId)
+            : null
           setState((s) => ({
             ...s,
             rentals: s.rentals.map((r) => (r.id === rentalId ? saved : r)),
+            notifications: replaceOverdueNotification(s.notifications, saved.id, overdue),
           }))
           return { success: true, rental: saved }
         } catch (err) {
@@ -416,6 +430,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           ...s,
           rentals: s.rentals.filter((r) => r.id !== rentalId),
           payments: s.payments.filter((p) => p.rentalId !== rentalId),
+          notifications: s.notifications.filter((n) => n.rentalId !== rentalId),
           cars: updatedCar ? s.cars.map((c) => (c.id === updatedCar.id ? updatedCar : c)) : s.cars,
         }))
 
@@ -468,9 +483,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         try {
           const saved = await db.persistExtendRental(updated)
+          const overdue = companyId
+            ? await db.syncOverdueNotification(saved, companyId)
+            : null
           setState((s) => ({
             ...s,
             rentals: s.rentals.map((r) => (r.id === rentalId ? saved : r)),
+            notifications: replaceOverdueNotification(s.notifications, saved.id, overdue),
           }))
           return { success: true, rental: saved, previousTotal: rental.totalCost }
         } catch (err) {
@@ -521,9 +540,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
         try {
           const saved = await db.persistReturnCar(completedRental, updatedCar)
+          const overdue = companyId
+            ? await db.syncOverdueNotification(saved, companyId)
+            : null
           setState((s) => ({
             ...s,
             rentals: s.rentals.map((r) => (r.id === rentalId ? saved : r)),
+            notifications: replaceOverdueNotification(s.notifications, saved.id, overdue),
           }))
           return { success: true, rental: saved }
         } catch (err) {
@@ -597,6 +620,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
           handleDbError(err, 'Failed to delete oil change record')
         }
       },
+
+      addNotification: async (
+        notificationData: Omit<RentalNotification, 'id' | 'isSystem'>,
+      ): Promise<RentalNotification | null> => {
+        if (!companyId) return null
+        clearError()
+        try {
+          const notification = await db.insertNotification(
+            { ...notificationData, isSystem: false },
+            companyId,
+          )
+          setState((s) => ({ ...s, notifications: [...s.notifications, notification] }))
+          return notification
+        } catch (err) {
+          handleDbError(err, 'Failed to add notification')
+          return null
+        }
+      },
+
+      deleteNotification: async (id: string): Promise<void> => {
+        clearError()
+        const existing = state.notifications.find((n) => n.id === id)
+        if (existing?.isSystem) return
+        setState((s) => ({
+          ...s,
+          notifications: s.notifications.filter((n) => n.id !== id),
+        }))
+        try {
+          await db.deleteNotification(id)
+        } catch (err) {
+          handleDbError(err, 'Failed to delete notification')
+        }
+      },
     }),
     [state, companyId, clearError, handleDbError],
   )
@@ -608,6 +664,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       rentals: state.rentals,
       payments: state.payments,
       oilChangeRecords: state.oilChangeRecords,
+      notifications: state.notifications,
       loading,
       error,
       clearError,

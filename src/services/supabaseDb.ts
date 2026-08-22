@@ -1,4 +1,13 @@
-import type { AppState, Car, Client, Company, OilChangeRecord, Payment, Rental } from '../types'
+import type {
+  AppState,
+  Car,
+  Client,
+  Company,
+  OilChangeRecord,
+  Payment,
+  Rental,
+  RentalNotification,
+} from '../types'
 import { getSupabase } from '../lib/supabase'
 
 function carFromRow(row: Record<string, unknown>): Car {
@@ -137,6 +146,31 @@ function oilChangeRecordToRow(
   }
 }
 
+function notificationFromRow(row: Record<string, unknown>): RentalNotification {
+  return {
+    id: String(row.id),
+    rentalId: String(row.rental_id),
+    kind: row.kind as RentalNotification['kind'],
+    dueDate: String(row.due_date).slice(0, 10),
+    note: row.note != null && String(row.note).trim() !== '' ? String(row.note) : undefined,
+    isSystem: Boolean(row.is_system),
+  }
+}
+
+function notificationToRow(
+  notification: Omit<RentalNotification, 'id'>,
+  companyId: string,
+): Record<string, unknown> {
+  return {
+    rental_id: notification.rentalId,
+    kind: notification.kind,
+    due_date: notification.dueDate,
+    note: notification.note ?? null,
+    is_system: notification.isSystem,
+    company_id: companyId,
+  }
+}
+
 function companyFromRow(row: Record<string, unknown>): Company {
   return {
     id: String(row.id),
@@ -152,19 +186,22 @@ function throwOnError(error: { message?: string } | null, fallbackMessage: strin
 
 export async function fetchAppState(): Promise<AppState> {
   const supabase = getSupabase()
-  const [carsRes, clientsRes, rentalsRes, paymentsRes, oilChangeRecordsRes] = await Promise.all([
-    supabase.from('cars').select('*').order('created_at', { ascending: true }),
-    supabase.from('clients').select('*').order('created_at', { ascending: true }),
-    supabase.from('rentals').select('*').order('created_at', { ascending: true }),
-    supabase.from('payments').select('*').order('created_at', { ascending: true }),
-    supabase.from('oil_change_records').select('*').order('date', { ascending: false }),
-  ])
+  const [carsRes, clientsRes, rentalsRes, paymentsRes, oilChangeRecordsRes, notificationsRes] =
+    await Promise.all([
+      supabase.from('cars').select('*').order('created_at', { ascending: true }),
+      supabase.from('clients').select('*').order('created_at', { ascending: true }),
+      supabase.from('rentals').select('*').order('created_at', { ascending: true }),
+      supabase.from('payments').select('*').order('created_at', { ascending: true }),
+      supabase.from('oil_change_records').select('*').order('date', { ascending: false }),
+      supabase.from('rental_notifications').select('*').order('due_date', { ascending: true }),
+    ])
 
   throwOnError(carsRes.error, 'Failed to load cars')
   throwOnError(clientsRes.error, 'Failed to load clients')
   throwOnError(rentalsRes.error, 'Failed to load rentals')
   throwOnError(paymentsRes.error, 'Failed to load payments')
   throwOnError(oilChangeRecordsRes.error, 'Failed to load oil change records')
+  throwOnError(notificationsRes.error, 'Failed to load notifications')
 
   return {
     cars: (carsRes.data ?? []).map((r) => carFromRow(r as Record<string, unknown>)),
@@ -173,6 +210,9 @@ export async function fetchAppState(): Promise<AppState> {
     payments: (paymentsRes.data ?? []).map((r) => paymentFromRow(r as Record<string, unknown>)),
     oilChangeRecords: (oilChangeRecordsRes.data ?? []).map((r) =>
       oilChangeRecordFromRow(r as Record<string, unknown>),
+    ),
+    notifications: (notificationsRes.data ?? []).map((r) =>
+      notificationFromRow(r as Record<string, unknown>),
     ),
   }
 }
@@ -199,13 +239,32 @@ export async function createCompanyAccount(input: {
 
   const payload = data as { companyId?: string; userId?: string; error?: string } | null
   if (error) {
-    throw new Error(payload?.error || error.message || 'Failed to create company account')
+    throw new Error(await functionInvokeErrorMessage(error, payload))
   }
   if (payload?.error) throw new Error(payload.error)
   if (!payload?.companyId || !payload?.userId) {
     throw new Error('Unexpected response from create-company-account')
   }
   return { companyId: payload.companyId, userId: payload.userId }
+}
+
+async function functionInvokeErrorMessage(
+  error: { message?: string; context?: unknown },
+  payload: { error?: string } | null,
+): Promise<string> {
+  if (payload?.error) return payload.error
+
+  const context = error.context
+  if (context instanceof Response) {
+    try {
+      const body = (await context.clone().json()) as { error?: string } | null
+      if (body?.error) return body.error
+    } catch {
+      // Response body may already have been consumed.
+    }
+  }
+
+  return error.message || 'Failed to create company account'
 }
 
 export async function insertCar(car: Omit<Car, 'id'>, companyId: string): Promise<Car> {
@@ -358,6 +417,53 @@ export async function persistExtendRental(rental: Rental): Promise<Rental> {
     totalCost: rental.totalCost,
     status: rental.status,
   })
+}
+
+export async function insertNotification(
+  notification: Omit<RentalNotification, 'id'>,
+  companyId: string,
+): Promise<RentalNotification> {
+  const supabase = getSupabase()
+  const { data, error } = await supabase
+    .from('rental_notifications')
+    .insert(notificationToRow(notification, companyId))
+    .select()
+    .single()
+  throwOnError(error, 'Failed to add notification')
+  return notificationFromRow(data as Record<string, unknown>)
+}
+
+export async function deleteNotification(id: string): Promise<void> {
+  const supabase = getSupabase()
+  const { error } = await supabase.from('rental_notifications').delete().eq('id', id)
+  throwOnError(error, 'Failed to delete notification')
+}
+
+export async function syncOverdueNotification(
+  rental: Pick<Rental, 'id' | 'endDate' | 'status'>,
+  companyId: string,
+): Promise<RentalNotification | null> {
+  const supabase = getSupabase()
+  const { error: deleteError } = await supabase
+    .from('rental_notifications')
+    .delete()
+    .eq('rental_id', rental.id)
+    .eq('is_system', true)
+  throwOnError(deleteError, 'Failed to sync overdue notification')
+
+  if (rental.status === 'Completed' || !rental.endDate) {
+    return null
+  }
+
+  return insertNotification(
+    {
+      rentalId: rental.id,
+      kind: 'overdue',
+      dueDate: rental.endDate,
+      isSystem: true,
+    },
+    companyId,
+  )
 }
 
 export async function insertPayment(
