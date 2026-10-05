@@ -4,5 +4,6 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-  base: '/',
+  // GitHub Pages serves this project at /renting-cars-system/. Local dev stays at /.
+  base: process.env.GITHUB_ACTIONS ? '/renting-cars-system/' : '/',
 })
