@@ -7,6 +7,7 @@ import { formatNumber } from '../../utils/format'
 import { calculateRentalCost } from '../../utils/calculations'
 import { daysBetween, todayISO } from '../../utils/dates'
 import { UserPlus } from 'lucide-react'
+import ClientSearchSelect from './ClientSearchSelect'
 
 interface RentalFormState {
   carId: string
@@ -172,27 +173,18 @@ export default function RentalForm({ onSubmit, onCancel }: Props) {
 
       <div>
         <label className="mb-1 block text-sm font-medium text-zinc-700">{t('rentals.client')}</label>
-        <select
-          value={addingClient ? '__new__' : form.clientId}
-          onChange={(e) => {
-            if (e.target.value === '__new__') {
+        {!addingClient && (
+          <ClientSearchSelect
+            clients={activeClients}
+            value={form.clientId}
+            onChange={(clientId) => setForm({ ...form, clientId })}
+            onAddNew={() => {
               setAddingClient(true)
               setForm({ ...form, clientId: '' })
-            } else {
-              setAddingClient(false)
-              setForm({ ...form, clientId: e.target.value })
-            }
-          }}
-          className={`w-full rounded-lg border px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none ${errors.clientId ? 'border-red-300' : 'border-zinc-200'}`}
-        >
-          <option value="">{t('rentals.selectActiveClient')}</option>
-          {activeClients.map((client) => (
-            <option key={client.id} value={client.id}>
-              {client.fullName}
-            </option>
-          ))}
-          <option value="__new__">{t('rentals.addNewClient')}</option>
-        </select>
+            }}
+            error={Boolean(errors.clientId)}
+          />
+        )}
         {errors.clientId && !addingClient && <p className="mt-1 text-xs text-red-500">{errors.clientId}</p>}
 
         {addingClient && (

@@ -293,6 +293,8 @@ const ar: Translations = {
     createRental: 'إنشاء إيجار',
     selectAvailableCar: 'اختر سيارة متاحة...',
     selectActiveClient: 'اختر عميلاً نشطاً...',
+    searchClientPlaceholder: 'ابحث عن عميل بالاسم أو رقم الهاتف...',
+    noClientsMatch: 'لا يوجد عملاء مطابقون',
     addNewClient: '+ إضافة عميل جديد',
     newClientTitle: 'عميل جديد',
     addAndSelect: 'إضافة واختيار',

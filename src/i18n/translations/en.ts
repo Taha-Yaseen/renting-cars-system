@@ -292,6 +292,8 @@ const en = {
     createRental: 'Create Rental',
     selectAvailableCar: 'Select available car...',
     selectActiveClient: 'Select active client...',
+    searchClientPlaceholder: 'Search clients by name or phone...',
+    noClientsMatch: 'No matching clients',
     addNewClient: '+ Add new client',
     newClientTitle: 'New Client',
     addAndSelect: 'Add & Select',
